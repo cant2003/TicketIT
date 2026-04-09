@@ -46,8 +46,8 @@ conv_handler = ConversationHandler(
         ],
     },
     fallbacks=[
-    MessageHandler(filters.Regex("(?i)^cancelar$"), cancelar_global),
-    CommandHandler("cancelar", cancelar_global),
+        MessageHandler(filters.Regex("(?i)^cancelar$"), cancelar_global),
+        CommandHandler("cancelar", cancelar_global),
     ]
 )
 

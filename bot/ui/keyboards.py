@@ -26,7 +26,7 @@ def teclado_tickets(tickets):
             )
         ])
 
-    keyboard.append([InlineKeyboardButton("🔙 Volver", callback_data="menu_ti")])
+    keyboard.append([InlineKeyboardButton("🔙 Volver", callback_data="menu")])
     return InlineKeyboardMarkup(keyboard)
 #!---------------------------------------------------------
 

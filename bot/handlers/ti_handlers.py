@@ -3,6 +3,7 @@ from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle
 from telegram.ext import ConversationHandler
 from bot.constants.states import OBSERVACION
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 # ! ver tickets 
@@ -31,7 +32,7 @@ async def ver_en_proceso(update, context):
     tickets = tickets_service.obtener_tickets_en_proceso(usuario)
 
     if not tickets:
-        await query.edit_message_text("📭 No tienes tickets en proceso" )
+        await query.edit_message_text("📭 No tienes tickets en proceso", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]) )
         return
 
     await query.edit_message_text(
@@ -49,7 +50,7 @@ async def ver_ticket_detalle(update, context):
     ticket = tickets_service.obtener_ticket(ticket_id)
 
     if not ticket:
-        await query.edit_message_text("❌ Ticket no encontrado" )
+        await query.edit_message_text("❌ Ticket no encontrado", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]) )
         return
 
     texto = (
@@ -79,7 +80,7 @@ async def tomar_ticket_handler(update, context):
         ticket = tickets_service.tomar_ticket(ticket_id, usuario)
 
         await query.edit_message_text(
-            f"🔧 Ticket #{ticket.id} tomado"
+            f"🔧 Ticket #{ticket.id} tomado", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ])
         )
         await context.bot.send_message(
             int(ticket.chat_id),
@@ -113,7 +114,7 @@ async def recibir_observacion(update, context):
     ticket_id = context.user_data.get("cerrar_ticket_id")
 
     if not ticket_id:
-        await update.message.reply_text("❌ Error, vuelve a empezar")
+        await update.message.reply_text("❌ Error, vuelve a empezar", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]))
         return ConversationHandler.END
 
     try:
@@ -122,7 +123,7 @@ async def recibir_observacion(update, context):
         )
 
         await update.message.reply_text(
-            f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada"
+            f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ])
         )
 
         await context.bot.send_message(

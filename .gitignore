@@ -1,3 +1,8 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Entornos virtuales (venv)
 venv/
 .venv/
@@ -14,3 +19,11 @@ share/
 .env.test
 .env.prod
 *.env
+.flaskenv
+
+# Bases de datos locales
+db.sqlite3
+db.sqlite3-journal
+
+# Editor (VS Code)
+.vscode/
