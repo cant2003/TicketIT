@@ -1,0 +1,57 @@
+from bot.handlers import ti_handlers, user_handlers
+from bot.utils import es_ti
+from bot.ui.keyboards import menu_ti, menu_usuario
+
+async def start(update, context):
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        message = query.message
+    else:
+        message = update.message
+
+    chat_id = message.chat_id
+
+    if es_ti(chat_id):
+        await message.reply_text(
+            "Panel TI 👨‍💻",
+            reply_markup=menu_ti()
+        )
+    else:
+        await message.reply_text(
+            "Hola 👋",
+            reply_markup=menu_usuario()
+        )
+#!---------------------------------------------------------
+
+async def botones(update, context):
+    query = update.callback_query
+    await query.answer()
+
+    chat_id = query.message.chat_id
+    data = query.data
+
+    if es_ti(chat_id):
+        if data == "ver_tickets":
+            return await ti_handlers.ver_tickets(update, context)
+
+        if data == "en_proceso":
+            return await ti_handlers.ver_en_proceso(update, context)
+
+        if data.startswith("ticket_"):
+            return await ti_handlers.ver_ticket_detalle(update, context)
+
+        if data.startswith("tomar_"):
+            return await ti_handlers.tomar_ticket_handler(update, context)
+
+        if data.startswith("cerrar_"):
+            return await ti_handlers.cerrar_ticket_handler(update, context)
+
+    else:
+        if data == "crear":
+            await query.edit_message_text("Escribe el AREA:")
+            return 0
+
+        if data == "estado":
+            await query.edit_message_text("Escribe ID:")
+            return 2
