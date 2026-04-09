@@ -1,5 +1,8 @@
 from bot.services import tickets_service
-from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle, volver_inicio
+from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle
+from telegram.ext import ConversationHandler
+from bot.constants.states import OBSERVACION
+
 
 
 # ! ver tickets 
@@ -97,20 +100,38 @@ async def cerrar_ticket_handler(update, context):
 
     ticket_id = int(query.data.split("_")[1])
 
-    try:
-        ticket = tickets_service.cerrar_ticket(ticket_id)
+    context.user_data["cerrar_ticket_id"] = ticket_id
 
-        await query.edit_message_text(f"✅ Ticket #{ticket.id} cerrado" )
+    await query.edit_message_text(
+        "✍️ Escribe una observación para cerrar el ticket:\n\n(Escribe 'cancelar' para salir)"
+    )
+    
+    return OBSERVACION
+
+async def recibir_observacion(update, context):
+    observacion = update.message.text
+    ticket_id = context.user_data.get("cerrar_ticket_id")
+
+    if not ticket_id:
+        await update.message.reply_text("❌ Error, vuelve a empezar")
+        return ConversationHandler.END
+
+    try:
+        ticket = tickets_service.cerrar_ticket_con_observacion(
+            ticket_id, observacion
+        )
+
+        await update.message.reply_text(
+            f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada"
+        )
 
         await context.bot.send_message(
             int(ticket.chat_id),
-            "🎉 Tu ticket fue resuelto"
+            f"🎉 Tu ticket fue resuelto\n📝 Observación: {observacion}"
         )
 
     except ValueError as e:
-        await query.edit_message_text(f"⚠️ {str(e)}" )
+        await update.message.reply_text(f"⚠️ {str(e)}")
 
-    except Exception:
-        await query.edit_message_text("❌ Error inesperado" )
-#!---------------------------------------------------------
+    return ConversationHandler.END
 

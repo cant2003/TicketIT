@@ -1,4 +1,4 @@
-# ! configuiracion de tokens y ID de telegram
+# ! configuiracion de tokens y ID
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -11,5 +11,5 @@ load_dotenv(dotenv_path=ruta_env)
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 USUARIOS_TI = [
-    # os.getenv("CRISTIAN_ID"),
+    os.getenv("CRISTIAN_ID"),
 ]

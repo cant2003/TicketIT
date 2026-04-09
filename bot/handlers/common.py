@@ -32,7 +32,24 @@ async def botones(update, context):
     chat_id = query.message.chat_id
     data = query.data
 
+    
+    if data == "menu_ti":
+        await query.edit_message_text(
+            "Panel TI 👨‍💻",
+            reply_markup=menu_ti()
+        )
+        return
+
+    
+    if data == "menu_usuario":
+        await query.edit_message_text(
+            "Hola 👋",
+            reply_markup=menu_usuario()
+        )
+        return
+
     if es_ti(chat_id):
+        
         if data == "ver_tickets":
             return await ti_handlers.ver_tickets(update, context)
 
@@ -60,11 +77,9 @@ async def botones(update, context):
 
 async def cancelar_global(update, context):
     if update.message:
-        await update.message.reply_text("❌ Operación cancelada",
-        reply_markup=volver_inicio())
+        await update.message.reply_text("❌ Operación cancelada")
     elif update.callback_query:
-        await update.callback_query.message.reply_text("❌ Operación cancelada",
-        reply_markup=volver_inicio())
+        await update.callback_query.message.reply_text("❌ Operación cancelada")
 
     context.user_data.clear()
 

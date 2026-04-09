@@ -109,3 +109,25 @@ def crear_ticket(data):
     db.close()
 
     return ticket
+
+def cerrar_ticket_con_observacion(ticket_id, observacion):
+    db = SessionLocal()
+
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+
+    if not ticket:
+        db.close()
+        raise ValueError("Ticket no encontrado")
+
+    ticket.estado = "Cerrado"
+    ticket.observacion = observacion
+
+    ahora = datetime.now()
+    ticket.fecha_actualizacion = ahora.strftime("%d-%m-%Y")
+    ticket.hora_actualizacion = ahora.strftime("%H:%M:%S")
+
+    db.commit()
+    db.refresh(ticket)
+    db.close()
+
+    return ticket

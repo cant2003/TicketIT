@@ -23,6 +23,7 @@ class Ticket(Base):
     hora_actualizacion = Column(String, default=datetime.utcnow().strftime("%H:%M:%S"))
     chat_id = Column(String, nullable=False)
     asignado_a = Column(String, nullable=True)
+    observacion = Column(String, nullable=True)
 
 Base.metadata.create_all(bind=engine)
 

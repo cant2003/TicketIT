@@ -1,6 +1,6 @@
 from bot.services import tickets_service
 from telegram.ext import ConversationHandler
-from bot.ui.keyboards import volver_inicio
+
 
 
 async def recibir_area(update, context):
@@ -28,8 +28,7 @@ async def recibir_descripcion(update, context):
 
     ticket = tickets_service.crear_ticket(data)
 
-    await update.message.reply_text(f"✅ Ticket creado ID: {ticket.id}",
-        reply_markup=volver_inicio())
+    await update.message.reply_text(f"✅ Ticket creado ID: {ticket.id}")
     return ConversationHandler.END
 #!---------------------------------------------------------
 
@@ -42,8 +41,7 @@ async def ver_estado(update, context):
             return ConversationHandler.END
 
         if not ticket:
-            await update.message.reply_text("❌ Ticket no encontrado",
-            reply_markup=volver_inicio())
+            await update.message.reply_text("❌ Ticket no encontrado")
             return ConversationHandler.END
 
         await update.message.reply_text(
@@ -51,7 +49,6 @@ async def ver_estado(update, context):
         )
 
     except:
-        await update.message.reply_text("❌ ID inválido",
-        reply_markup=volver_inicio())
+        await update.message.reply_text("❌ ID inválido")
         return ConversationHandler.END
 #!---------------------------------------------------------

@@ -1,5 +1,6 @@
 from bot.config import TOKEN
 from bot.ui.keyboards import menu_ti, menu_usuario
+from bot.constants.states import AREA, DESCRIPCION, ESTADO_ID, OBSERVACION
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,
     MessageHandler, filters, ConversationHandler
@@ -8,10 +9,11 @@ from bot.handlers.common import (
     botones, start, cancelar_global
 )
 from bot.handlers.user_handlers import (
-    recibir_area, recibir_descripcion, ver_estado
+    recibir_area, recibir_descripcion, ver_estado, 
 )
-
-AREA, DESCRIPCION, ESTADO_ID = range(3)
+from bot.handlers.ti_handlers import (
+    recibir_observacion
+)
 
 app = ApplicationBuilder().token(TOKEN).build()
 
@@ -34,6 +36,12 @@ conv_handler = ConversationHandler(
             MessageHandler(
                 filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
                 ver_estado
+            )
+        ],
+        OBSERVACION: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                recibir_observacion
             )
         ],
     },
