@@ -36,3 +36,5 @@ def teclado_ticket_detalle(ticket_id):
         [InlineKeyboardButton("✅ Cerrar", callback_data=f"cerrar_{ticket_id}")],
         [InlineKeyboardButton("🔙 Volver", callback_data="ver_tickets")]
     ])
+#!---------------------------------------------------------
+

@@ -1,12 +1,24 @@
 from bot.services import tickets_service
+from telegram.ext import ConversationHandler
+from bot.ui.keyboards import volver_inicio
+
 
 async def recibir_area(update, context):
+    if update.message.text.lower() == "cancelar":
+        return ConversationHandler.END
     context.user_data["area"] = update.message.text
-    await update.message.reply_text("Describe el problema:")
+    await update.message.reply_text(
+        "Describe el problema:\n\n(Escribe 'cancelar' para salir)"
+        )
     return 1
 #!---------------------------------------------------------
 
 async def recibir_descripcion(update, context):
+    area = context.user_data.get("area")
+
+    if update.message.text.lower() == "cancelar":
+        return ConversationHandler.END
+    
     data = {
         "usuario": update.message.from_user.first_name,
         "chat_id": update.message.chat_id,
@@ -16,8 +28,9 @@ async def recibir_descripcion(update, context):
 
     ticket = tickets_service.crear_ticket(data)
 
-    await update.message.reply_text(f"✅ Ticket creado ID: {ticket.id}")
-    return -1
+    await update.message.reply_text(f"✅ Ticket creado ID: {ticket.id}",
+        reply_markup=volver_inicio())
+    return ConversationHandler.END
 #!---------------------------------------------------------
 
 async def ver_estado(update, context):
@@ -25,13 +38,20 @@ async def ver_estado(update, context):
         ticket_id = int(update.message.text)
         ticket = tickets_service.obtener_ticket(ticket_id)
 
+        if update.message.text.lower() == "cancelar":
+            return ConversationHandler.END
+
         if not ticket:
-            await update.message.reply_text("❌ Ticket no encontrado")
-            return -1
+            await update.message.reply_text("❌ Ticket no encontrado",
+            reply_markup=volver_inicio())
+            return ConversationHandler.END
 
         await update.message.reply_text(
             f"ID: {ticket.id}\nEstado: {ticket.estado}"
         )
 
     except:
-        await update.message.reply_text("❌ ID inválido")
+        await update.message.reply_text("❌ ID inválido",
+        reply_markup=volver_inicio())
+        return ConversationHandler.END
+#!---------------------------------------------------------

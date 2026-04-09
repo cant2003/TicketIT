@@ -1,5 +1,6 @@
 from bot.services import tickets_service
-from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle
+from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle, volver_inicio
+
 
 # ! ver tickets 
 async def ver_tickets(update, context):
@@ -9,7 +10,7 @@ async def ver_tickets(update, context):
     tickets = tickets_service.obtener_tickets_abiertos()
 
     if not tickets:
-        await query.edit_message_text("📭 No hay tickets")
+        await query.edit_message_text("📭 No hay tickets" )
         return
 
     await query.edit_message_text(
@@ -27,7 +28,7 @@ async def ver_en_proceso(update, context):
     tickets = tickets_service.obtener_tickets_en_proceso(usuario)
 
     if not tickets:
-        await query.edit_message_text("📭 No tienes tickets en proceso")
+        await query.edit_message_text("📭 No tienes tickets en proceso" )
         return
 
     await query.edit_message_text(
@@ -45,7 +46,7 @@ async def ver_ticket_detalle(update, context):
     ticket = tickets_service.obtener_ticket(ticket_id)
 
     if not ticket:
-        await query.edit_message_text("❌ Ticket no encontrado")
+        await query.edit_message_text("❌ Ticket no encontrado" )
         return
 
     texto = (
@@ -86,7 +87,7 @@ async def tomar_ticket_handler(update, context):
         await query.edit_message_text(f"⚠️ {str(e)}")
     
     except Exception:
-        await query.edit_message_text("❌ Error inesperado")
+        await query.edit_message_text("❌ Error inesperado" )
 #!---------------------------------------------------------
 
 # !  Cerrar ticket
@@ -99,7 +100,7 @@ async def cerrar_ticket_handler(update, context):
     try:
         ticket = tickets_service.cerrar_ticket(ticket_id)
 
-        await query.edit_message_text(f"✅ Ticket #{ticket.id} cerrado")
+        await query.edit_message_text(f"✅ Ticket #{ticket.id} cerrado" )
 
         await context.bot.send_message(
             int(ticket.chat_id),
@@ -107,9 +108,9 @@ async def cerrar_ticket_handler(update, context):
         )
 
     except ValueError as e:
-        await query.edit_message_text(f"⚠️ {str(e)}")
+        await query.edit_message_text(f"⚠️ {str(e)}" )
 
     except Exception:
-        await query.edit_message_text("❌ Error inesperado")
+        await query.edit_message_text("❌ Error inesperado" )
 #!---------------------------------------------------------
 

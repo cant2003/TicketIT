@@ -1,6 +1,7 @@
 from bot.handlers import ti_handlers, user_handlers
 from bot.utils import es_ti
-from bot.ui.keyboards import menu_ti, menu_usuario
+from bot.ui.keyboards import (menu_ti, menu_usuario)
+from telegram.ext import ConversationHandler
 
 async def start(update, context):
     if update.callback_query:
@@ -55,3 +56,16 @@ async def botones(update, context):
         if data == "estado":
             await query.edit_message_text("Escribe ID:")
             return 2
+#!---------------------------------------------------------
+
+async def cancelar_global(update, context):
+    if update.message:
+        await update.message.reply_text("❌ Operación cancelada",
+        reply_markup=volver_inicio())
+    elif update.callback_query:
+        await update.callback_query.message.reply_text("❌ Operación cancelada",
+        reply_markup=volver_inicio())
+
+    context.user_data.clear()
+
+    return ConversationHandler.END
