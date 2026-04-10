@@ -117,9 +117,11 @@ async def recibir_observacion(update, context):
         await update.message.reply_text("❌ Error, vuelve a empezar", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]))
         return ConversationHandler.END
 
+    usuario = update.message.from_user.first_name
+
     try:
         ticket = tickets_service.cerrar_ticket_con_observacion(
-            ticket_id, observacion
+            ticket_id, observacion, usuario
         )
 
         await update.message.reply_text(

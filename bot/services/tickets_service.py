@@ -63,7 +63,7 @@ def tomar_ticket(ticket_id, usuario):
     return ticket
 #!---------------------------------------------------------
 
-#!Crear Ticket
+#!Cerrar Ticket
 def cerrar_ticket(ticket_id):
     db = SessionLocal()
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
@@ -109,8 +109,8 @@ def crear_ticket(data):
     db.close()
 
     return ticket
-
-def cerrar_ticket_con_observacion(ticket_id, observacion):
+# !___________________________________________________
+def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
     db = SessionLocal()
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
@@ -118,9 +118,16 @@ def cerrar_ticket_con_observacion(ticket_id, observacion):
     if not ticket:
         db.close()
         raise ValueError("Ticket no encontrado")
+    
+    if ticket.estado == "Cerrado":
+        db.close()
+        raise ValueError("El ticket ya se encuentra cerrado")
 
     ticket.estado = "Cerrado"
     ticket.observacion = observacion
+
+    if not ticket.asignado_a:
+        ticket.asignado_a = usuario
 
     ahora = datetime.now()
     ticket.fecha_actualizacion = ahora.strftime("%d-%m-%Y")
