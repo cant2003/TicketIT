@@ -2,8 +2,9 @@ from bot.services import tickets_service
 from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle
 from telegram.ext import ConversationHandler
 from bot.constants.states import OBSERVACION
-
+from bot.services import reportes_service
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from datetime import datetime
 
 
 # ! ver tickets 
@@ -108,7 +109,7 @@ async def cerrar_ticket_handler(update, context):
     )
     
     return OBSERVACION
-
+#! -----------------------------------------------
 async def recibir_observacion(update, context):
     observacion = update.message.text
     ticket_id = context.user_data.get("cerrar_ticket_id")
@@ -137,4 +138,34 @@ async def recibir_observacion(update, context):
         await update.message.reply_text(f"⚠️ {str(e)}")
 
     return ConversationHandler.END
+#! -----------------------------------------------
 
+async def mostrar_menu_reportes(update, context):
+    query = update.callback_query
+    await query.answer()
+
+    from bot.ui.keyboards import teclado_reportes
+
+    await query.edit_message_text(
+        "📊 Selecciona tipo de reporte:",
+        reply_markup=teclado_reportes()
+    )
+
+#!---------------------------------------------------------
+async def reporte_todos(update, context):
+    query = update.callback_query
+    await query.answer()
+
+    tickets = reportes_service.tickets_todos()
+
+    if not tickets:
+        await query.edit_message_text("📭 No hay datos para el reporte")
+        return
+
+    archivo = reportes_service.generar_excel(tickets)
+
+    await context.bot.send_document(
+        chat_id=query.message.chat_id,
+        document=archivo,
+        filename=f"Reporte Todos Tickets.xlsx"
+    )

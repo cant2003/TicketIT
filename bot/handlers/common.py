@@ -1,7 +1,8 @@
-from bot.handlers import ti_handlers, user_handlers
+from bot.handlers import (ti_handlers, user_handlers)
 from bot.utils import es_ti
 from bot.ui.keyboards import (menu_ti, menu_usuario)
 from telegram.ext import ConversationHandler
+from bot.ui.keyboards import teclado_reportes
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -49,31 +50,36 @@ async def botones(update, context):
         return
 
     if es_ti(chat_id):
-        
         if data == "ver_tickets":
             return await ti_handlers.ver_tickets(update, context)
 
-        if data == "en_proceso":
+        elif data == "en_proceso":
             return await ti_handlers.ver_en_proceso(update, context)
 
-        if data.startswith("ticket_"):
+        elif data.startswith("ticket_"):
             return await ti_handlers.ver_ticket_detalle(update, context)
 
-        if data.startswith("tomar_"):
+        elif data.startswith("tomar_"):
             return await ti_handlers.tomar_ticket_handler(update, context)
 
-        if data.startswith("cerrar_"):
+        elif data.startswith("cerrar_"):
             return await ti_handlers.cerrar_ticket_handler(update, context)
+        
+        elif data == "reporte":
+            return await ti_handlers.mostrar_menu_reportes(update, context)
+
+        elif data == "rep_todos":
+            return await ti_handlers.reporte_todos(update, context)
 
     else:
         if data == "crear":
             await query.edit_message_text("Escribe el AREA:")
             return 0
 
-        if data == "estado":
+        elif data == "estado":
             await query.edit_message_text("Escribe ID:")
             return 2
-#!---------------------------------------------------------
+# !---------------------------------------------------------
 
 async def cancelar_global(update, context):
     if update.message:

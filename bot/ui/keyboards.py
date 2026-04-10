@@ -5,6 +5,7 @@ def menu_ti():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📋 Ver Tickets", callback_data="ver_tickets")],
         [InlineKeyboardButton("🔧 En Proceso", callback_data="en_proceso")],
+        [InlineKeyboardButton("📊 Reportes", callback_data="reporte")]
     ])
 #!---------------------------------------------------------
 
@@ -38,3 +39,10 @@ def teclado_ticket_detalle(ticket_id):
     ])
 #!---------------------------------------------------------
 
+def teclado_reportes():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 Todos", callback_data="rep_todos")],
+        [InlineKeyboardButton("🏢 Por área", callback_data="rep_area")],
+        [InlineKeyboardButton("👤 Por usuario", callback_data="rep_usuario")],
+        [InlineKeyboardButton("🔙 Volver", callback_data="menu")]
+    ])
