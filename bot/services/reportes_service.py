@@ -3,6 +3,8 @@ from io import BytesIO
 from backend.db import SessionLocal, Ticket
 from openpyxl.styles import Font, PatternFill, Alignment,Border, Side
 from datetime import datetime
+import smtplib
+from email.message import EmailMessage
 #!---------------------------------------------------------
 #! GENERA EXCEL
 def generar_excel(tickets):
@@ -185,10 +187,38 @@ def aplicar_bordes(ws):
             cell.border = border
 
 #!--------------------------------------------------------
+#! ENVIAR REPORTE A CORREO
+def enviar_report_correo(archivo_bytes, nombre_archivo):
+    REMITENTE = "cn90336@gmail.com"
+    PASSWORD = "zbbn zozj echl gmxz"
+    DESTINATARIO = "cr.nunezt2003@gmail.com"
 
+    msg = EmailMessage()
+    msg['Subject'] = f"Reporte Generado: {nombre_archivo}"
+    msg['From'] = REMITENTE
+    msg['To'] = DESTINATARIO
+    msg.set_content("Adjunto encontraras el reporte solicitado desde el Bot de Telegram TI-BOT.")
+
+    payload = archivo_bytes.getvalue() if hasattr(archivo_bytes, 'getvalue') else archivo_bytes
+
+    msg.add_attachment(
+        payload,
+        maintype='application',
+        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        filename=nombre_archivo
+    )
+    with smtplib.SMTP_SSL('smtp.gmail.com',465) as smtp: 
+        smtp.login(REMITENTE, PASSWORD)
+        smtp.send_message(msg)
+
+
+#!--------------------------------------------------------
 #! FILTRAR TODO
 def tickets_todos():
     db = SessionLocal()
     tickets = db.query(Ticket).all()
     db.close()
     return tickets
+
+
+#!--------------------------------------------------------

@@ -161,11 +161,22 @@ async def reporte_todos(update, context):
     if not tickets:
         await query.edit_message_text("📭 No hay datos para el reporte")
         return
-
+    
+    nombre_fichero = f"Reporte Todos Tickets.xlsx"
     archivo = reportes_service.generar_excel(tickets)
+
+    if hasattr(archivo, 'seek'): archivo.seek(0)
 
     await context.bot.send_document(
         chat_id=query.message.chat_id,
         document=archivo,
-        filename=f"Reporte Todos Tickets.xlsx"
+        filename=nombre_fichero
     )
+
+    try:
+        if hasattr(archivo, 'seek'): archivo.seek(0) # Reiniciar puntero para el correo
+        reportes_service.enviar_report_correo(archivo, nombre_fichero)
+        await query.message.reply_text("📧 También se ha enviado una copia al correo configurado.")
+    except Exception as e:
+        print(f"Error enviando correo: {e}")
+        await query.message.reply_text("⚠️ El reporte se envió a Telegram, pero falló el envío por correo.")
