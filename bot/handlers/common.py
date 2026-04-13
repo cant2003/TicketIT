@@ -3,9 +3,6 @@ from bot.utils import es_ti
 from bot.ui.keyboards import (menu_ti, menu_usuario,boton_volver)
 from telegram.ext import ConversationHandler
 
-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
 async def start(update, context):
     if update.callback_query:
         query = update.callback_query
@@ -28,6 +25,12 @@ async def start(update, context):
         )
 #!---------------------------------------------------------
 
+MAPA_TI = {
+    "ver_tickets": ti_handlers.ver_tickets,
+    "en_proceso": ti_handlers.ver_en_proceso,
+    "rep_todos": ti_handlers.reporte_todos,
+}
+
 async def botones(update, context):
     query = update.callback_query
     await query.answer()
@@ -35,7 +38,7 @@ async def botones(update, context):
     chat_id = query.message.chat_id
     data = query.data
 
-    
+    # !MENUS -----------------------------
     if data == "menu":
         if es_ti(chat_id):
             await query.edit_message_text(
@@ -60,13 +63,14 @@ async def botones(update, context):
                 "Hola 👋\nEn que puedo ayudarte",
                 reply_markup=menu_usuario()
             )
+        return
+
+    # ! TI------------------------------------------------
 
     if es_ti(chat_id):
-        if data == "ver_tickets":
-            return await ti_handlers.ver_tickets(update, context)
 
-        elif data == "en_proceso":
-            return await ti_handlers.ver_en_proceso(update, context)
+        if data in MAPA_TI:
+            return await MAPA_TI[data](update, context)
 
         elif data.startswith("ticket_"):
             return await ti_handlers.ver_ticket_detalle(update, context)
@@ -82,6 +86,17 @@ async def botones(update, context):
 
         elif data == "rep_todos":
             return await ti_handlers.reporte_todos(update, context)
+        
+        elif data == "rep_asig":
+            await query.message.reply_text("👤 Ingresa el nombre del Asignado TI:")
+            return 4
+        
+        elif data == "rep_user":
+            await query.message.reply_text("👤 Ingresa el nombre del Usuario")
+            return 5
+        
+        elif data == "periodo":
+            return await ti_handlers.mostrar_menu_periodos(update, context)
 
     else:
         if data == "crear":

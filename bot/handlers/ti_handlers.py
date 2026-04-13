@@ -171,30 +171,49 @@ async def mostrar_menu_reportes(update, context):
         reply_markup=teclado_reportes()
     )
 
-#!---------------------------------------------------------
-async def reporte_todos(update, context):
+async def mostrar_menu_periodos(update, context):
     query = update.callback_query
     await query.answer()
 
-    tickets = reportes_service.tickets_todos()
+    from bot.ui.keyboards import teclado_periodo
+
+    await query.edit_message_text(
+        "⏱️ Selecciona el periodo:",
+        reply_markup=teclado_periodo()
+    )
+
+#!---------------------------------------------------------
+async def generar_reportes(origen, context, tickets, nombre_fichero):
+
+    if hasattr(origen, "message"): 
+        chat_id = origen.message.chat_id
+        responder = origen.message.reply_text
+        editar = origen.edit_message_text
+    else: 
+        chat_id = origen.chat_id
+        responder = origen.reply_text
+        editar = None
 
     if not tickets:
-        await query.edit_message_text("📭 No hay datos para el reporte",reply_markup=boton_volver())
+        if editar:
+            await editar("📭 No hay datos para el reporte", reply_markup=boton_volver())
+        else:
+            await responder("📭 No hay datos para el reporte", reply_markup=boton_volver())
         return
-    
-    nombre_fichero = f"Reporte Todos Tickets.xlsx"
+
     archivo = reportes_service.generar_excel(tickets)
 
-    if hasattr(archivo, 'seek'): archivo.seek(0)
+    if hasattr(archivo, 'seek'):
+        archivo.seek(0)
 
     await context.bot.send_document(
-        chat_id=query.message.chat_id,
+        chat_id=chat_id,
         document=archivo,
         filename=nombre_fichero
     )
 
     try:
-        if hasattr(archivo, 'seek'): 
+        if hasattr(archivo, 'seek'):
             archivo.seek(0)
             archivo_bytes = archivo.read()
         else:
@@ -206,8 +225,73 @@ async def reporte_todos(update, context):
             daemon=True
         ).start()
 
-        await query.message.reply_text("📧 Copia de reporte se esta enviando al correo...", reply_markup=boton_volver_menu())
+        await responder(
+            "📧 Copia de reporte se está enviando al correo...",
+            reply_markup=boton_volver_menu()
+        )
 
     except Exception as e:
         print(f"Error enviando correo: {e}")
-        await query.message.reply_text("⚠️ El reporte falló en el envío por correo.", reply_markup=boton_volver_menu()) 
+        await responder(
+            "⚠️ El reporte falló en el envío por correo.",
+            reply_markup=boton_volver_menu()
+        )
+
+#!-----------------------------------------------------------------------
+async def reporte_todos(update, context):
+
+    query = update.callback_query
+
+    if query:
+        await query.answer()
+
+    tickets = reportes_service.tickets_todos()
+    fecha, hora = tickets_service._ahora()
+
+    nombre_archivo = f"Reporte Todos Tickets {fecha}_{hora}.xlsx"
+
+    await generar_reportes(
+        query,
+        context,
+        tickets,
+        nombre_archivo
+    )
+
+#!-------------------------------
+async def reporte_asignado(update,context):
+    texto = update.message.text.strip()
+
+    if update.message.text.lower() == "cancelar":
+        return ConversationHandler.END
+    
+    context.user_data["asignado"] = texto
+
+    tickets = reportes_service.tickets_asignado(texto)
+
+    fecha,hora = tickets_service._ahora()
+
+    nombre_archivo = f"Reportes Tickest Asignados a {texto} {fecha}_{hora}.xlsx"
+
+    await generar_reportes(update.message, context, tickets, nombre_archivo)
+
+    return ConversationHandler.END
+
+#!-------------------------------
+async def reporte_usuario(update,context):
+    texto = update.message.text.strip()
+
+    if update.message.text.lower() == "cancelar":
+        return ConversationHandler.END
+    
+    context.user_data["usuario"] = texto
+
+    tickets = reportes_service.tickets_usuario(texto)
+
+    fecha,hora = tickets_service._ahora()
+
+    nombre_archivo = f"Reportes Tickest del Usuario {texto} {fecha}_{hora}.xlsx"
+
+    await generar_reportes(update.message, context, tickets, nombre_archivo)
+
+    return ConversationHandler.END
+    

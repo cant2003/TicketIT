@@ -2,7 +2,7 @@ import pandas as pd
 from io import BytesIO
 from backend.db import SessionLocal, Ticket
 from openpyxl.styles import Font, PatternFill, Alignment,Border, Side
-from datetime import datetime
+from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
 from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO
@@ -107,7 +107,7 @@ def auto_ajustar_columnas(ws):
 #!---------------------------------------------------------
 #! FILTROS 
 def aplicar_filtros(ws):
-    ws.auto_filter.ref = f"A3:K{ws.max_row}"
+    ws.auto_filter.ref = f"A3:I{ws.max_row}"
 
 # !CONGELAR ENCABEZADO 
 def congelar_encabezado(ws):
@@ -213,6 +213,36 @@ def tickets_todos():
     tickets = db.query(Ticket).all()
     db.close()
     return tickets
-
-
 #!--------------------------------------------------------
+
+#! FILTRAR POR Asignado
+def tickets_todos():
+    db = SessionLocal()
+    tickets = db.query(Ticket).all()
+    db.close()
+    return tickets
+#!--------------------------------------------------------
+def tickets_asignado(asignado):
+    db = SessionLocal()
+    tickets = db.query(Ticket).filter(Ticket.asignado_a==asignado, Ticket.estado== 'Cerrado').all()
+    db.close()
+    return tickets
+
+def tickets_usuario(usuario):
+    db = SessionLocal()
+    tickets = db.query(Ticket).filter(Ticket.usuario==usuario, Ticket.estado== 'Cerrado').all()
+    db.close()
+    return tickets
+
+#!-------------------------------------------------------
+
+def tickets_ultimo_anyo(anyo):
+    db = SessionLocal()
+
+    tickets = db.query(Ticket).filter(
+        Ticket.fecha_creacion.like(f"%{anyo}"),
+        Ticket.estado == "Cerrado"
+    ).all()
+
+    db.close()
+    return tickets
