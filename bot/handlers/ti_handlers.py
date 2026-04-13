@@ -1,11 +1,9 @@
 from bot.services import tickets_service
-from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle, boton_volver
+from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle, boton_volver, boton_volver_menu,teclado_detalle_proceso
 from telegram.ext import ConversationHandler
 from bot.constants.states import OBSERVACION
 from bot.services import reportes_service
 import threading
-
-
 
 # ! ver tickets 
 async def ver_tickets(update, context):
@@ -15,7 +13,7 @@ async def ver_tickets(update, context):
     tickets = tickets_service.obtener_tickets_abiertos()
 
     if not tickets:
-        await query.edit_message_text("📭 No hay tickets" )
+        await query.edit_message_text("📭 No hay tickets", reply_markup=boton_volver() )
         return
 
     await query.edit_message_text(
@@ -50,7 +48,7 @@ async def ver_ticket_detalle(update, context):
     try:
         ticket_id = int(query.data.split("_")[1])
     except:
-        await query.edit_message_text("❌ Error en el ID")
+        await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
         return
     
     ticket = tickets_service.obtener_ticket(ticket_id)
@@ -67,11 +65,15 @@ async def ver_ticket_detalle(update, context):
         f"Estado: {ticket.estado}\n"
         f"Asignado: {ticket.asignado_a or 'Nadie'}"
     )
-
-    await query.edit_message_text(
-        texto,
-        reply_markup=teclado_ticket_detalle(ticket.id)
-    )
+    if ticket.estado == 'En Proceso':
+        await query.edit_message_text(
+            texto, reply_markup=teclado_detalle_proceso(ticket.id)
+        )
+    else:
+        await query.edit_message_text(
+            texto,
+            reply_markup=teclado_ticket_detalle(ticket.id)
+        )
 #!---------------------------------------------------------
 
 #! tomar tickets
@@ -82,7 +84,7 @@ async def tomar_ticket_handler(update, context):
     try:
         ticket_id = int(query.data.split("_")[1])
     except:
-        await query.edit_message_text("❌ Error en el ID")
+        await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
         return
     
     usuario = query.from_user.first_name
@@ -91,19 +93,19 @@ async def tomar_ticket_handler(update, context):
         ticket = tickets_service.tomar_ticket(ticket_id, usuario)
 
         await query.edit_message_text(
-            f"🔧 Ticket #{ticket.id} tomado", reply_markup=boton_volver()
+            f"🔧 Ticket #{ticket.id} tomado", reply_markup=boton_volver_menu()
         )
         chat_id = int(ticket.chat_id) if ticket.chat_id else None
         await context.bot.send_message(
             chat_id,
-            f"👨‍💻 Tu ticket está en proceso"
+            f"👨‍💻 Tu ticket está en proceso", reply_markup=boton_volver()
         )
     
     except ValueError as e:
-        await query.edit_message_text(f"⚠️ {str(e)}")
+        await query.edit_message_text(f"⚠️ {str(e)}", reply_markup=boton_volver())
     
     except Exception:
-        await query.edit_message_text("❌ Error inesperado" )
+        await query.edit_message_text("❌ Error inesperado", reply_markup=boton_volver())
 #!---------------------------------------------------------
 
 # !  Cerrar ticket
@@ -114,7 +116,7 @@ async def cerrar_ticket_handler(update, context):
     try:
         ticket_id = int(query.data.split("_")[1])
     except:
-        await query.edit_message_text("❌ Error en el ID")
+        await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
         return
     
     context.user_data["cerrar_ticket_id"] = ticket_id
@@ -144,12 +146,12 @@ async def recibir_observacion(update, context):
         )
 
         await update.message.reply_text(
-            f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada", reply_markup=boton_volver()
+            f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada", reply_markup=boton_volver_menu()
         )
         chat_id = int(ticket.chat_id) if ticket.chat_id else None
         await context.bot.send_message(
             chat_id,
-            f"🎉 Tu ticket fue resuelto\n📝 Observación: {observacion}"
+            f"✅ Tu ticket fue Atendido\n📝 Observación: {observacion}",reply_markup=boton_volver_menu()
         )
 
     except ValueError as e:
@@ -177,7 +179,7 @@ async def reporte_todos(update, context):
     tickets = reportes_service.tickets_todos()
 
     if not tickets:
-        await query.edit_message_text("📭 No hay datos para el reporte")
+        await query.edit_message_text("📭 No hay datos para el reporte",reply_markup=boton_volver())
         return
     
     nombre_fichero = f"Reporte Todos Tickets.xlsx"
@@ -204,8 +206,8 @@ async def reporte_todos(update, context):
             daemon=True
         ).start()
 
-        await query.message.reply_text("📧 Copia de reporte se esta enviando al correo...")
+        await query.message.reply_text("📧 Copia de reporte se esta enviando al correo...", reply_markup=boton_volver_menu())
 
     except Exception as e:
         print(f"Error enviando correo: {e}")
-        await query.message.reply_text("⚠️ El reporte falló en el envío por correo.") 
+        await query.message.reply_text("⚠️ El reporte falló en el envío por correo.", reply_markup=boton_volver_menu()) 

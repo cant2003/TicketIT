@@ -37,17 +37,38 @@ def teclado_ticket_detalle(ticket_id):
         [InlineKeyboardButton("✅ Cerrar", callback_data=f"cerrar_{ticket_id}")],
         [InlineKeyboardButton("🔙 Volver", callback_data="ver_tickets")]
     ])
+
+def teclado_detalle_proceso(ticket_id):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Cerrar", callback_data=f"cerrar_{ticket_id}")],
+        [InlineKeyboardButton("🔙 Volver", callback_data="en_proceso")]
+    ])
 #!---------------------------------------------------------
 
 def teclado_reportes():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📋 Todos", callback_data="rep_todos")],
-        [InlineKeyboardButton("🏢 Por área", callback_data="rep_area")],
-        [InlineKeyboardButton("👤 Por usuario", callback_data="rep_usuario")],
+        [InlineKeyboardButton("👨‍💻 Por Asignado TI", callback_data="rep_area")],
+        [InlineKeyboardButton("👤 Por Usuario", callback_data="rep_usuario")],
+        [InlineKeyboardButton("⏱️ Por Periodo", callback_data="rep_usuario")],
         [InlineKeyboardButton("🔙 Volver", callback_data="menu")]
     ])
 
+def teclado_periodo():
+    return InlineKeyboardMarkup([
+    [InlineKeyboardButton("🌱 Hoy", callback_data="rep_todos")],
+    [InlineKeyboardButton("🌿 Ultima Semana", callback_data="rep_todos")],
+    [InlineKeyboardButton("🌳 Ultimo Mes", callback_data="rep_todos")],
+    [InlineKeyboardButton("🍎 Ultima Ultimo Año", callback_data="rep_todos")],
+    ])
+
+
+# !---------------------------------------------------------
 def boton_volver():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")]
+    ])
+def boton_volver_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu_message")]
     ])

@@ -51,12 +51,10 @@ def construir_dataframe(tickets):
             "Área": t.area,
             "Descripción": t.descripcion,
             "Estado": t.estado,
-            "Fecha Creacion": t.fecha_creacion,
-            "Hora Creacion" : t.hora_creacion,
+            "Fecha Creacion": f"{t.fecha_creacion}. {t.hora_creacion}",
             "TI Asignado": t.asignado_a or "Sin asignar",
-            "Observacion TI": t.observacion,
-            "Fecha Actualiz.": t.fecha_actualizacion,
-            "Hora Actualiz.": t.hora_actualizacion,
+            "Observacion TI": t.observacion or "Sin observaciones",
+            "Fecha Actualiz.": f"{t.fecha_actualizacion}. {t.hora_actualizacion}"
         })
 
     return pd.DataFrame(data)
@@ -156,12 +154,10 @@ def ajustar_columnas_especiales(ws):
         "C": 12,
         "D": 40,
         "E": 10,
-        "F": 16,
-        "G": 16,
-        "H": 12,
-        "I": 40,
-        "J": 16,
-        "K": 16,
+        "F": 20,
+        "G": 12,
+        "H": 40,
+        "I": 20,
     }
 
     for col, width in tamaños.items():
@@ -171,7 +167,7 @@ def ajustar_columnas_especiales(ws):
 #!---------------------------------------------------------
 #! ORDENAR
 def ordenar_dataframe(df):
-    return df.sort_values(by="ID", ascending=True)
+    return df.sort_values(by="ID", ascending=False)
 
 def aplicar_bordes(ws):
     thin = Side(style="thin", color="000000")
@@ -193,7 +189,7 @@ def enviar_report_correo(archivo_bytes, nombre_archivo):
 
     msg = EmailMessage()
     msg['Subject'] = f"Reporte Generado: {nombre_archivo}"
-    msg['From'] = REMITENTE
+    msg['From'] = f'TI-BOT SOPORTE (No-Reply) <{REMITENTE}>'
     msg['To'] = DESTINATARIO
     msg.set_content("Adjunto encontraras el reporte solicitado desde el Bot de Telegram TI-BOT.")
 

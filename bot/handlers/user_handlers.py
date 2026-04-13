@@ -1,7 +1,7 @@
 from bot.services import tickets_service
 from telegram.ext import ConversationHandler
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import threading
+from bot.ui.keyboards import boton_volver, boton_volver_menu
 
 async def recibir_area(update, context):
     if update.message.text.lower() == "cancelar":
@@ -40,7 +40,7 @@ async def recibir_descripcion(update, context):
 
     await tickets_service.notificar_ti(context, ticket)
 
-    await update.message.reply_text(f"✅ Ticket creado ID: {ticket.id}")
+    await update.message.reply_text(f"✅ Ticket creado ID: {ticket.id}", reply_markup=boton_volver_menu())
     return ConversationHandler.END
 #!---------------------------------------------------------
 
@@ -53,7 +53,7 @@ async def ver_estado(update, context):
         ticket = tickets_service.obtener_ticket(ticket_id)
 
         if not ticket:
-            await update.message.reply_text("❌ Ticket no encontrado", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]))
+            await update.message.reply_text("❌ Ticket no encontrado", reply_markup=boton_volver())
             return ConversationHandler.END
 
         await update.message.reply_text(
@@ -61,7 +61,7 @@ async def ver_estado(update, context):
         )
 
     except:
-        await update.message.reply_text("❌ ID inválido", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]))
+        await update.message.reply_text("❌ ID inválido", reply_markup=boton_volver())
 
     return ConversationHandler.END
 #!---------------------------------------------------------

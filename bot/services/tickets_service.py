@@ -3,6 +3,7 @@ from datetime import datetime
 import smtplib
 from email.message import EmailMessage
 from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO,USUARIOS_TI
+from bot.ui.keyboards import boton_volver_menu
 
 
 def _ahora():
@@ -147,7 +148,7 @@ def enviar_correo(id_ticket, usuario=None, descripcion=None, fecha_creacion=None
 
     msg = EmailMessage()
     msg['Subject'] = f"🆕 Ticket Abierto #{id_ticket}, {fecha_creacion}"
-    msg['From'] = REMITENTE
+    msg['From'] = f'TI-BOT SOPORTE (No-Reply) <{REMITENTE}>'
     msg['To'] = DESTINATARIO
 
     contenido = f"""Se ha abierto un nuevo ticket.
@@ -178,6 +179,6 @@ async def notificar_ti(context, ticket):
 
     for chat_id in USUARIOS_TI:
         try:
-            await context.bot.send_message(chat_id=chat_id, text=mensaje)
+            await context.bot.send_message(chat_id=chat_id, text=mensaje, reply_markup=boton_volver_menu())
         except Exception as e:
             print(f"Error enviando a {chat_id}:", e)

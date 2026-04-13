@@ -1,6 +1,6 @@
 from bot.handlers import (ti_handlers)
 from bot.utils import es_ti
-from bot.ui.keyboards import (menu_ti, menu_usuario)
+from bot.ui.keyboards import (menu_ti, menu_usuario,boton_volver)
 from telegram.ext import ConversationHandler
 
 
@@ -23,7 +23,7 @@ async def start(update, context):
         )
     else:
         await message.reply_text(
-            "Hola 👋",
+            "Hola 👋\nEn que puedo ayudarte",
             reply_markup=menu_usuario()
         )
 #!---------------------------------------------------------
@@ -44,10 +44,22 @@ async def botones(update, context):
             )
         else:
             await query.edit_message_text(
-                "Hola 👋",
+                "Hola 👋\nEn que puedo ayudarte",
                 reply_markup=menu_usuario()
             )
         return
+    
+    if data == "menu_message":
+        if es_ti(chat_id):
+            await query.message.reply_text(
+                "Panel TI 👨‍💻",
+                reply_markup=menu_ti()
+            )
+        else:
+            await query.message.reply_text(
+                "Hola 👋\nEn que puedo ayudarte",
+                reply_markup=menu_usuario()
+            )
 
     if es_ti(chat_id):
         if data == "ver_tickets":
@@ -85,16 +97,12 @@ async def cancelar_global(update, context):
     if update.message:
         await update.message.reply_text(
             "❌ Operación cancelada",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙Volver al inicio", callback_data="menu")]
-            ])
+            reply_markup=boton_volver()
         )
     elif update.callback_query:
         await update.callback_query.message.reply_text(
             "❌ Operación cancelada",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")]
-            ])
+            reply_markup=boton_volver()
         )
     context.user_data.clear()
 
