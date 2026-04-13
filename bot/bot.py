@@ -1,5 +1,4 @@
 from bot.config import TOKEN
-from bot.ui.keyboards import menu_ti, menu_usuario
 from bot.constants.states import AREA, DESCRIPCION, ESTADO_ID, OBSERVACION
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,

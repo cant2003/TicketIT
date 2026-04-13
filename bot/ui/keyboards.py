@@ -46,3 +46,8 @@ def teclado_reportes():
         [InlineKeyboardButton("👤 Por usuario", callback_data="rep_usuario")],
         [InlineKeyboardButton("🔙 Volver", callback_data="menu")]
     ])
+
+def boton_volver():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")]
+    ])

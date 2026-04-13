@@ -1,5 +1,9 @@
 from backend.db import SessionLocal, Ticket
 from datetime import datetime
+import smtplib
+from email.message import EmailMessage
+from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO,USUARIOS_TI
+
 
 def _ahora():
     ahora = datetime.now()
@@ -138,3 +142,42 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
     db.close()
 
     return ticket
+#! ------------------------------------
+def enviar_correo(id_ticket, usuario=None, descripcion=None, fecha_creacion=None):
+
+    msg = EmailMessage()
+    msg['Subject'] = f"🆕 Ticket Abierto #{id_ticket}, {fecha_creacion}"
+    msg['From'] = REMITENTE
+    msg['To'] = DESTINATARIO
+
+    contenido = f"""Se ha abierto un nuevo ticket.
+
+ID: {id_ticket}
+Usuario: {usuario if usuario else 'No especificado'}
+Descripción: {descripcion if descripcion else 'Sin descripción'}
+"""
+
+    msg.set_content(contenido)
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com',465) as smtp: 
+            smtp.login(REMITENTE, EMAIL_PASS)
+            smtp.send_message(msg)
+    except Exception as e:
+        print("Error al enviar correo: ", e)
+
+#!__________________________________________________
+async def notificar_ti(context, ticket):
+    mensaje = (
+        f"🆕 Nuevo ticket\n"
+        f"ID: {ticket.id}\n"
+        f"Usuario: {ticket.usuario}\n"
+        f"Área: {ticket.area}\n"
+        f"Descripción: {ticket.descripcion}"
+    )
+
+    for chat_id in USUARIOS_TI:
+        try:
+            await context.bot.send_message(chat_id=chat_id, text=mensaje)
+        except Exception as e:
+            print(f"Error enviando a {chat_id}:", e)

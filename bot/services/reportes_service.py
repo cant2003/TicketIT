@@ -5,6 +5,7 @@ from openpyxl.styles import Font, PatternFill, Alignment,Border, Side
 from datetime import datetime
 import smtplib
 from email.message import EmailMessage
+from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO
 #!---------------------------------------------------------
 #! GENERA EXCEL
 def generar_excel(tickets):
@@ -189,9 +190,6 @@ def aplicar_bordes(ws):
 #!--------------------------------------------------------
 #! ENVIAR REPORTE A CORREO
 def enviar_report_correo(archivo_bytes, nombre_archivo):
-    REMITENTE = "cn90336@gmail.com"
-    PASSWORD = "zbbn zozj echl gmxz"
-    DESTINATARIO = "cr.nunezt2003@gmail.com"
 
     msg = EmailMessage()
     msg['Subject'] = f"Reporte Generado: {nombre_archivo}"
@@ -208,7 +206,7 @@ def enviar_report_correo(archivo_bytes, nombre_archivo):
         filename=nombre_archivo
     )
     with smtplib.SMTP_SSL('smtp.gmail.com',465) as smtp: 
-        smtp.login(REMITENTE, PASSWORD)
+        smtp.login(REMITENTE, EMAIL_PASS)
         smtp.send_message(msg)
 
 

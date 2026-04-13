@@ -1,10 +1,10 @@
 from bot.services import tickets_service
-from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle
+from bot.ui.keyboards import teclado_tickets, teclado_ticket_detalle, boton_volver
 from telegram.ext import ConversationHandler
 from bot.constants.states import OBSERVACION
 from bot.services import reportes_service
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from datetime import datetime
+import threading
+
 
 
 # ! ver tickets 
@@ -33,7 +33,7 @@ async def ver_en_proceso(update, context):
     tickets = tickets_service.obtener_tickets_en_proceso(usuario)
 
     if not tickets:
-        await query.edit_message_text("📭 No tienes tickets en proceso", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]) )
+        await query.edit_message_text("📭 No tienes tickets en proceso", reply_markup=boton_volver() )
         return
 
     await query.edit_message_text(
@@ -47,11 +47,16 @@ async def ver_ticket_detalle(update, context):
     query = update.callback_query
     await query.answer()
 
-    ticket_id = int(query.data.split("_")[1])
+    try:
+        ticket_id = int(query.data.split("_")[1])
+    except:
+        await query.edit_message_text("❌ Error en el ID")
+        return
+    
     ticket = tickets_service.obtener_ticket(ticket_id)
 
     if not ticket:
-        await query.edit_message_text("❌ Ticket no encontrado", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]) )
+        await query.edit_message_text("❌ Ticket no encontrado", reply_markup=boton_volver() )
         return
 
     texto = (
@@ -74,17 +79,23 @@ async def tomar_ticket_handler(update, context):
     query = update.callback_query
     await query.answer()
 
-    ticket_id = int(query.data.split("_")[1])
+    try:
+        ticket_id = int(query.data.split("_")[1])
+    except:
+        await query.edit_message_text("❌ Error en el ID")
+        return
+    
     usuario = query.from_user.first_name
 
     try:
         ticket = tickets_service.tomar_ticket(ticket_id, usuario)
 
         await query.edit_message_text(
-            f"🔧 Ticket #{ticket.id} tomado", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ])
+            f"🔧 Ticket #{ticket.id} tomado", reply_markup=boton_volver()
         )
+        chat_id = int(ticket.chat_id) if ticket.chat_id else None
         await context.bot.send_message(
-            int(ticket.chat_id),
+            chat_id,
             f"👨‍💻 Tu ticket está en proceso"
         )
     
@@ -100,8 +111,12 @@ async def cerrar_ticket_handler(update, context):
     query = update.callback_query
     await query.answer()
 
-    ticket_id = int(query.data.split("_")[1])
-
+    try:
+        ticket_id = int(query.data.split("_")[1])
+    except:
+        await query.edit_message_text("❌ Error en el ID")
+        return
+    
     context.user_data["cerrar_ticket_id"] = ticket_id
 
     await query.edit_message_text(
@@ -114,8 +129,11 @@ async def recibir_observacion(update, context):
     observacion = update.message.text
     ticket_id = context.user_data.get("cerrar_ticket_id")
 
+    if observacion.lower() == "cancelar":
+        return ConversationHandler.END
+
     if not ticket_id:
-        await update.message.reply_text("❌ Error, vuelve a empezar", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ]))
+        await update.message.reply_text("❌ Error, vuelve a empezar", reply_markup=boton_volver())
         return ConversationHandler.END
 
     usuario = update.message.from_user.first_name
@@ -126,11 +144,11 @@ async def recibir_observacion(update, context):
         )
 
         await update.message.reply_text(
-            f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada", reply_markup=InlineKeyboardMarkup([ [InlineKeyboardButton("🔙 Volver al inicio", callback_data="menu")] ])
+            f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada", reply_markup=boton_volver()
         )
-
+        chat_id = int(ticket.chat_id) if ticket.chat_id else None
         await context.bot.send_message(
-            int(ticket.chat_id),
+            chat_id,
             f"🎉 Tu ticket fue resuelto\n📝 Observación: {observacion}"
         )
 
@@ -174,9 +192,20 @@ async def reporte_todos(update, context):
     )
 
     try:
-        if hasattr(archivo, 'seek'): archivo.seek(0) # Reiniciar puntero para el correo
-        reportes_service.enviar_report_correo(archivo, nombre_fichero)
-        await query.message.reply_text("📧 También se ha enviado una copia al correo configurado.")
+        if hasattr(archivo, 'seek'): 
+            archivo.seek(0)
+            archivo_bytes = archivo.read()
+        else:
+            archivo_bytes = archivo
+
+        threading.Thread(
+            target=reportes_service.enviar_report_correo,
+            args=(archivo_bytes, nombre_fichero),
+            daemon=True
+        ).start()
+
+        await query.message.reply_text("📧 Copia de reporte se esta enviando al correo...")
+
     except Exception as e:
         print(f"Error enviando correo: {e}")
-        await query.message.reply_text("⚠️ El reporte se envió a Telegram, pero falló el envío por correo.")
+        await query.message.reply_text("⚠️ El reporte falló en el envío por correo.") 

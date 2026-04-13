@@ -11,5 +11,9 @@ load_dotenv(dotenv_path=ruta_env)
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 USUARIOS_TI = [
-    os.getenv("CRISTIAN_ID"),
+    os.getenv("CRISTIAN_ID"), 
 ]
+
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+REMITENTE = os.getenv("REMITENTE")
+DESTINATARIO = os.getenv("DESTINATARIO")
