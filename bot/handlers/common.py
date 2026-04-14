@@ -17,21 +17,20 @@ async def start(update, context):
     chat_id = message.chat_id
 
     if es_ti(chat_id):
-        await message.reply_text(
-            "Panel TI 👨‍💻",
-            reply_markup=menu_ti()
-        )
+        await message.reply_text("Panel TI 👨‍💻", reply_markup=menu_ti())
     else:
         await message.reply_text(
-            "Hola 👋\nEn que puedo ayudarte",
-            reply_markup=menu_usuario()
+            "Hola 👋\nEn que puedo ayudarte", reply_markup=menu_usuario()
         )
+
+
 #!---------------------------------------------------------
 
 MAPA_TI = {
     "ver_tickets": th.ver_tickets,
     "en_proceso": th.ver_en_proceso,
 }
+
 
 async def botones(update, context):
     query = update.callback_query
@@ -43,34 +42,25 @@ async def botones(update, context):
     # !MENUS -----------------------------
     if data == "menu":
         if es_ti(chat_id):
-            await query.edit_message_text(
-                "Panel TI 👨‍💻",
-                reply_markup=menu_ti()
-            )
+            await query.edit_message_text("Panel TI 👨‍💻", reply_markup=menu_ti())
         else:
             await query.edit_message_text(
-                "Hola 👋\nEn que puedo ayudarte",
-                reply_markup=menu_usuario()
+                "Hola 👋\nEn que puedo ayudarte", reply_markup=menu_usuario()
             )
         return
-    
+
     if data == "menu_message":
         if es_ti(chat_id):
-            await query.message.reply_text(
-                "Panel TI 👨‍💻",
-                reply_markup=menu_ti()
-            )
+            await query.message.reply_text("Panel TI 👨‍💻", reply_markup=menu_ti())
         else:
             await query.message.reply_text(
-                "Hola 👋\nEn que puedo ayudarte",
-                reply_markup=menu_usuario()
+                "Hola 👋\nEn que puedo ayudarte", reply_markup=menu_usuario()
             )
         return
 
     # ! TI------------------------------------------------
 
     if es_ti(chat_id):
-
         if data in MAPA_TI:
             return await MAPA_TI[data](update, context)
 
@@ -82,36 +72,36 @@ async def botones(update, context):
 
         elif data.startswith("cerrar_"):
             return await th.cerrar_ticket_handler(update, context)
-        
+
         elif data == "reporte":
             return await rh.mostrar_menu_reportes(update, context)
 
         elif data == "rep_todos":
             return await rh.reporte_todos(update, context)
-        
+
         elif data == "rep_asig":
             await query.message.reply_text("👤 Ingresa el nombre del Asignado TI:")
             return 4
-        
+
         elif data == "rep_user":
             await query.message.reply_text("👤 Ingresa el nombre del Usuario")
             return 5
-        
+
         elif data == "periodo":
             return await rh.mostrar_menu_periodos(update, context)
-        
+
         elif data == "rep_hoy":
             return await rh.reporte_hoy(update, context)
-        
+
         elif data == "rep_sem":
             return await rh.reporte_semana(update, context)
-        
+
         elif data == "rep_mes":
             return await rh.reporte_mes(update, context)
-        
+
         elif data == "rep_anyo":
             return await rh.reporte_anyo(update, context)
-        
+
         elif data == "rep_per":
             await query.edit_message_text(
                 "📅 Ingresa fecha inicio\n formato (dd-mm-yyyy):\n\n(Escribe 'cancelar' para salir)"
@@ -126,18 +116,19 @@ async def botones(update, context):
         elif data == "estado":
             await query.edit_message_text("Escribe ID:")
             return 2
+
+
 # !---------------------------------------------------------
+
 
 async def cancelar_global(update, context):
     if update.message:
         await update.message.reply_text(
-            "❌ Operación cancelada",
-            reply_markup=boton_volver()
+            "❌ Operación cancelada", reply_markup=boton_volver()
         )
     elif update.callback_query:
         await update.callback_query.message.reply_text(
-            "❌ Operación cancelada",
-            reply_markup=boton_volver()
+            "❌ Operación cancelada", reply_markup=boton_volver()
         )
     context.user_data.clear()
 

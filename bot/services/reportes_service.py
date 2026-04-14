@@ -1,11 +1,15 @@
-import pandas as pd
-from io import BytesIO
-from backend.db import SessionLocal, Ticket
-from openpyxl.styles import Font, PatternFill, Alignment,Border, Side
-from datetime import datetime, timedelta
 import smtplib
+from datetime import datetime, timedelta
 from email.message import EmailMessage
-from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO
+from io import BytesIO
+
+import pandas as pd
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+from backend.db import SessionLocal, Ticket
+from bot.config import DESTINATARIO, EMAIL_PASS, REMITENTE
+
+
 #!---------------------------------------------------------
 #! GENERA EXCEL
 def generar_excel(tickets):
@@ -25,7 +29,6 @@ def generar_excel(tickets):
         ws["A1"].font = Font(size=14, bold=True)
         ws["A1"].font = Font(size=10)
 
-
         aplicar_estilos_generales(ws)
         aplicar_estilo_headers(ws)
         auto_ajustar_columnas(ws)
@@ -39,23 +42,30 @@ def generar_excel(tickets):
     output.seek(0)
     return output
 
+
 #!---------------------------------------------------------
 #! CONSTRUYE LA ESTRUCTURA DE DATOS
 def construir_dataframe(tickets):
     data = []
 
     for t in tickets:
-        data.append({
-            "ID": t.id,
-            "Usuario": t.usuario,
-            "Área": t.area,
-            "Descripción": t.descripcion,
-            "Estado": t.estado,
-            "Fecha Creacion": t.fecha_creacion.strftime("%d-%m-%Y %H:%M:%S") if t.fecha_creacion else "",
-            "TI Asignado": t.asignado_a or "Sin asignar",
-            "Observacion TI": t.observacion or "Sin observaciones",
-            "Fecha Actualiz.":  t.fecha_actualizacion.strftime("%d-%m-%Y %H:%M:%S") if t.fecha_actualizacion else "",
-        })
+        data.append(
+            {
+                "ID": t.id,
+                "Usuario": t.usuario,
+                "Área": t.area,
+                "Descripción": t.descripcion,
+                "Estado": t.estado,
+                "Fecha Creacion": t.fecha_creacion.strftime("%d-%m-%Y %H:%M:%S")
+                if t.fecha_creacion
+                else "",
+                "TI Asignado": t.asignado_a or "Sin asignar",
+                "Observacion TI": t.observacion or "Sin observaciones",
+                "Fecha Actualiz.": t.fecha_actualizacion.strftime("%d-%m-%Y %H:%M:%S")
+                if t.fecha_actualizacion
+                else "",
+            }
+        )
 
     return pd.DataFrame(data)
 
@@ -65,18 +75,15 @@ def construir_dataframe(tickets):
 def aplicar_estilos_generales(ws):
     for row in ws.iter_rows(min_row=4):
         for cell in row:
-            cell.alignment =Alignment(
-                horizontal ="center",
-                vertical="center",
-                wrap_text=True
+            cell.alignment = Alignment(
+                horizontal="center", vertical="center", wrap_text=True
             )
-    for col in ['D','I']:
+    for col in ["D", "I"]:
         for cell in ws[col]:
             cell.alignment = Alignment(
-                horizontal="left",
-                vertical="center",
-                wrap_text=True
+                horizontal="left", vertical="center", wrap_text=True
             )
+
 
 #!---------------------------------------------------------
 #! ESTILO HEADERS
@@ -91,6 +98,7 @@ def aplicar_estilo_headers(ws):
 
     ws.row_dimensions[3].heigth = 20
 
+
 #!---------------------------------------------------------
 #! AJUSTAR COLUMNAS
 def auto_ajustar_columnas(ws):
@@ -104,26 +112,29 @@ def auto_ajustar_columnas(ws):
 
         ws.column_dimensions[col_letter].width = max_length + 2
 
+
 #!---------------------------------------------------------
-#! FILTROS 
+#! FILTROS
 def aplicar_filtros(ws):
     ws.auto_filter.ref = f"A3:I{ws.max_row}"
 
-# !CONGELAR ENCABEZADO 
+
+# !CONGELAR ENCABEZADO
 def congelar_encabezado(ws):
     ws.freeze_panes = "A4"
+
 
 #! COLORES DE ESTADO
 def aplicar_colores_estado(ws):
     for row in ws.iter_rows(min_row=4):
-        estado = row[4].value  
+        estado = row[4].value
 
         if estado == "Abierto":
             fill = PatternFill(start_color="C6EFCE", fill_type="solid")
 
         elif estado == "Cerrado":
             fill = PatternFill(start_color="FFC7CE", fill_type="solid")
-        
+
         elif estado == "En Proceso":
             fill = PatternFill(start_color="FFD966", fill_type="solid")
 
@@ -132,6 +143,7 @@ def aplicar_colores_estado(ws):
 
         for cell in row:
             cell.fill = fill
+
 
 #! NULOS
 def resaltar_nulos(ws):
@@ -145,8 +157,9 @@ def resaltar_nulos(ws):
         if cell.value == "Sin Comentarios":
             cell.fill = null_fill
 
+
 #!---------------------------------------------------------
-# !COLUMNAS ESPECIALES 
+# !COLUMNAS ESPECIALES
 def ajustar_columnas_especiales(ws):
     tamaños = {
         "A": 7,
@@ -169,39 +182,42 @@ def ajustar_columnas_especiales(ws):
 def ordenar_dataframe(df):
     return df.sort_values(by="ID", ascending=False)
 
+
 def aplicar_bordes(ws):
     thin = Side(style="thin", color="000000")
 
-    border = Border(
-        left=thin,
-        right=thin,
-        top=thin,
-        bottom=thin
-    )
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    for row in ws.iter_rows(min_row=3): 
+    for row in ws.iter_rows(min_row=3):
         for cell in row:
             cell.border = border
+
 
 #!--------------------------------------------------------
 #! ENVIAR REPORTE A CORREO
 def enviar_report_correo(archivo_bytes, nombre_archivo):
 
     msg = EmailMessage()
-    msg['Subject'] = f"Reporte Generado: {nombre_archivo}"
-    msg['From'] = f'TI-BOT SOPORTE (No-Reply) <{REMITENTE}>'
-    msg['To'] = DESTINATARIO
-    msg.set_content("Adjunto encontraras el reporte solicitado desde el Bot de Telegram TI-BOT.")
+    msg["Subject"] = f"Reporte Generado: {nombre_archivo}"
+    msg["From"] = f"TI-BOT SOPORTE (No-Reply) <{REMITENTE}>"
+    msg["To"] = DESTINATARIO
+    msg.set_content(
+        "Adjunto encontraras el reporte solicitado desde el Bot de Telegram TI-BOT."
+    )
 
-    payload = archivo_bytes.getvalue() if hasattr(archivo_bytes, 'getvalue') else archivo_bytes
+    payload = (
+        archivo_bytes.getvalue()
+        if hasattr(archivo_bytes, "getvalue")
+        else archivo_bytes
+    )
 
     msg.add_attachment(
         payload,
-        maintype='application',
-        subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        filename=nombre_archivo
+        maintype="application",
+        subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=nombre_archivo,
     )
-    with smtplib.SMTP_SSL('smtp.gmail.com',465) as smtp: 
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(REMITENTE, EMAIL_PASS)
         smtp.send_message(msg)
 
@@ -213,22 +229,36 @@ def tickets_todos():
     tickets = db.query(Ticket).all()
     db.close()
     return tickets
+
+
 #!--------------------------------------------------------
+
 
 #! FILTRAR POR Asignado
 def tickets_asignado(asignado):
     db = SessionLocal()
-    tickets = db.query(Ticket).filter(Ticket.asignado_a==asignado, Ticket.estado== 'Cerrado').all()
+    tickets = (
+        db.query(Ticket)
+        .filter(Ticket.asignado_a == asignado, Ticket.estado == "Cerrado")
+        .all()
+    )
     db.close()
     return tickets
+
 
 def tickets_usuario(usuario):
     db = SessionLocal()
-    tickets = db.query(Ticket).filter(Ticket.usuario==usuario, Ticket.estado== 'Cerrado').all()
+    tickets = (
+        db.query(Ticket)
+        .filter(Ticket.usuario == usuario, Ticket.estado == "Cerrado")
+        .all()
+    )
     db.close()
     return tickets
 
+
 #!-------------------------------------------------------
+
 
 def tickets_ultimo_anyo():
     db = SessionLocal()
@@ -236,16 +266,22 @@ def tickets_ultimo_anyo():
     ahora = datetime.utcnow()
     hace_12_meses = ahora - timedelta(days=365)
 
-    tickets = db.query(Ticket).filter(
-        Ticket.fecha_creacion >= hace_12_meses,
-        Ticket.fecha_creacion <= ahora,
-        Ticket.estado == "Cerrado"
-    ).all()
+    tickets = (
+        db.query(Ticket)
+        .filter(
+            Ticket.fecha_creacion >= hace_12_meses,
+            Ticket.fecha_creacion <= ahora,
+            Ticket.estado == "Cerrado",
+        )
+        .all()
+    )
 
     db.close()
     return tickets
 
+
 #!-------------------------------------------------------
+
 
 def tickets_ultimo_mes():
     db = SessionLocal()
@@ -253,14 +289,19 @@ def tickets_ultimo_mes():
     ahora = datetime.utcnow()
     hace_30_dias = ahora - timedelta(days=30)
 
-    tickets = db.query(Ticket).filter(
-        Ticket.fecha_creacion >= hace_30_dias,
-        Ticket.fecha_creacion <= ahora,
-        Ticket.estado == "Cerrado"
-    ).all()
+    tickets = (
+        db.query(Ticket)
+        .filter(
+            Ticket.fecha_creacion >= hace_30_dias,
+            Ticket.fecha_creacion <= ahora,
+            Ticket.estado == "Cerrado",
+        )
+        .all()
+    )
 
     db.close()
     return tickets
+
 
 #!---------------------------------------------------------
 def tickets_hoy():
@@ -271,14 +312,19 @@ def tickets_hoy():
     inicio_dia = datetime(ahora.year, ahora.month, ahora.day)
     fin_dia = inicio_dia + timedelta(days=1)
 
-    tickets = db.query(Ticket).filter(
-        Ticket.fecha_creacion >= inicio_dia,
-        Ticket.fecha_creacion < fin_dia,
-        Ticket.estado == "Cerrado"
-    ).all()
+    tickets = (
+        db.query(Ticket)
+        .filter(
+            Ticket.fecha_creacion >= inicio_dia,
+            Ticket.fecha_creacion < fin_dia,
+            Ticket.estado == "Cerrado",
+        )
+        .all()
+    )
 
     db.close()
     return tickets
+
 
 #!---------------------------------------------------------
 def tickets_semana_actual():
@@ -288,21 +334,22 @@ def tickets_semana_actual():
 
     # lunes de esta semana
     inicio_semana = ahora - timedelta(days=ahora.weekday())
-    inicio_semana = datetime(
-        inicio_semana.year,
-        inicio_semana.month,
-        inicio_semana.day
-    )
+    inicio_semana = datetime(inicio_semana.year, inicio_semana.month, inicio_semana.day)
 
     fin_semana = inicio_semana + timedelta(days=7)
 
-    tickets = db.query(Ticket).filter(
-        Ticket.fecha_creacion >= inicio_semana,
-        Ticket.fecha_creacion < fin_semana
-    ).all()
+    tickets = (
+        db.query(Ticket)
+        .filter(
+            Ticket.fecha_creacion >= inicio_semana, Ticket.fecha_creacion < fin_semana
+        )
+        .all()
+    )
 
     db.close()
     return tickets
+
+
 #!------------------------------------------------
 def tickets_por_rango(fecha_inicio_str, fecha_fin_str):
     db = SessionLocal()
@@ -319,10 +366,11 @@ def tickets_por_rango(fecha_inicio_str, fecha_fin_str):
         db.close()
         raise ValueError("Formato de fecha inválido. Usa dd-mm-yyyy")
 
-    tickets = db.query(Ticket).filter(
-        Ticket.fecha_creacion >= inicio,
-        Ticket.fecha_creacion < fin
-    ).all()
+    tickets = (
+        db.query(Ticket)
+        .filter(Ticket.fecha_creacion >= inicio, Ticket.fecha_creacion < fin)
+        .all()
+    )
 
     db.close()
     return tickets

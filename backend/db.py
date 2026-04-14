@@ -1,16 +1,21 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
+from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
 # !Conexión SQLite
-engine = create_engine("sqlite:///tickets.db", connect_args={"check_same_thread": False})
+engine = create_engine(
+    "sqlite:///tickets.db", connect_args={"check_same_thread": False}
+)
 
 # !Base de modelos
 Base = declarative_base()
 
+
 def now():
     return datetime.utcnow()
+
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -25,6 +30,7 @@ class Ticket(Base):
     chat_id = Column(String, nullable=False)
     asignado_a = Column(String, nullable=True)
     observacion = Column(String, nullable=True)
+
 
 Base.metadata.create_all(bind=engine)
 
