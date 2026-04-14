@@ -27,14 +27,11 @@ async def recibir_descripcion(update, context):
     }
 
     ticket = tickets_service.crear_ticket(data)
-    
+
     threading.Thread(
         target=tickets_service.enviar_correo,
         args=(
             ticket.id,
-            ticket.usuario,
-            ticket.descripcion,
-            f"{ticket.fecha_creacion} {ticket.hora_creacion}"
         )
     ).start()
 

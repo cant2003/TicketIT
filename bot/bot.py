@@ -1,5 +1,5 @@
 from bot.config import TOKEN
-from bot.constants.states import (AREA, DESCRIPCION, ESTADO_ID, OBSERVACION, ESPERANDO_ASIGNADO,ESPERANDO_USUARIO)
+from bot.constants.states import (AREA, DESCRIPCION, ESTADO_ID, OBSERVACION, ESPERANDO_ASIGNADO,ESPERANDO_USUARIO,RANGO_INICIO,RANGO_FIN)
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,
     MessageHandler, filters, ConversationHandler
@@ -11,7 +11,10 @@ from bot.handlers.user_handlers import (
     recibir_area, recibir_descripcion, ver_estado, 
 )
 from bot.handlers.ti_handlers import (
-    recibir_observacion,reporte_asignado, reporte_usuario
+    recibir_observacion
+)
+from bot.handlers.report_handlers import(
+    reporte_asignado, reporte_usuario, recibir_inicio, recibir_fin
 )
 
 app = ApplicationBuilder().token(TOKEN).build()
@@ -53,7 +56,18 @@ conv_handler = ConversationHandler(
                 filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"), reporte_usuario
             )
         ],
-
+        RANGO_INICIO: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                recibir_inicio
+            )
+        ],
+        RANGO_FIN: [
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^canelar"),
+                recibir_fin
+            )
+        ],
     },
     fallbacks=[
         MessageHandler(filters.Regex("(?i)^cancelar$"), cancelar_global),

@@ -1,7 +1,10 @@
-from bot.handlers import (ti_handlers)
-from bot.utils import es_ti
-from bot.ui.keyboards import (menu_ti, menu_usuario,boton_volver)
 from telegram.ext import ConversationHandler
+
+from bot.handlers import report_handlers as rh
+from bot.handlers import ti_handlers as th
+from bot.ui.keyboards import boton_volver, menu_ti, menu_usuario
+from bot.utils import es_ti
+
 
 async def start(update, context):
     if update.callback_query:
@@ -26,9 +29,8 @@ async def start(update, context):
 #!---------------------------------------------------------
 
 MAPA_TI = {
-    "ver_tickets": ti_handlers.ver_tickets,
-    "en_proceso": ti_handlers.ver_en_proceso,
-    "rep_todos": ti_handlers.reporte_todos,
+    "ver_tickets": th.ver_tickets,
+    "en_proceso": th.ver_en_proceso,
 }
 
 async def botones(update, context):
@@ -73,19 +75,19 @@ async def botones(update, context):
             return await MAPA_TI[data](update, context)
 
         elif data.startswith("ticket_"):
-            return await ti_handlers.ver_ticket_detalle(update, context)
+            return await th.ver_ticket_detalle(update, context)
 
         elif data.startswith("tomar_"):
-            return await ti_handlers.tomar_ticket_handler(update, context)
+            return await th.tomar_ticket_handler(update, context)
 
         elif data.startswith("cerrar_"):
-            return await ti_handlers.cerrar_ticket_handler(update, context)
+            return await th.cerrar_ticket_handler(update, context)
         
         elif data == "reporte":
-            return await ti_handlers.mostrar_menu_reportes(update, context)
+            return await rh.mostrar_menu_reportes(update, context)
 
         elif data == "rep_todos":
-            return await ti_handlers.reporte_todos(update, context)
+            return await rh.reporte_todos(update, context)
         
         elif data == "rep_asig":
             await query.message.reply_text("👤 Ingresa el nombre del Asignado TI:")
@@ -96,7 +98,25 @@ async def botones(update, context):
             return 5
         
         elif data == "periodo":
-            return await ti_handlers.mostrar_menu_periodos(update, context)
+            return await rh.mostrar_menu_periodos(update, context)
+        
+        elif data == "rep_hoy":
+            return await rh.reporte_hoy(update, context)
+        
+        elif data == "rep_sem":
+            return await rh.reporte_semana(update, context)
+        
+        elif data == "rep_mes":
+            return await rh.reporte_mes(update, context)
+        
+        elif data == "rep_anyo":
+            return await rh.reporte_anyo(update, context)
+        
+        elif data == "rep_per":
+            await query.edit_message_text(
+                "📅 Ingresa fecha inicio\n formato (dd-mm-yyyy):\n\n(Escribe 'cancelar' para salir)"
+            )
+            return 6
 
     else:
         if data == "crear":

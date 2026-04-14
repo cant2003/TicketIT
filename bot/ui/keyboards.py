@@ -56,10 +56,12 @@ def teclado_reportes():
 
 def teclado_periodo():
     return InlineKeyboardMarkup([
-    [InlineKeyboardButton("🌱 Hoy", callback_data="rep_todos")],
-    [InlineKeyboardButton("🌿 Ultima Semana", callback_data="rep_todos")],
-    [InlineKeyboardButton("🌳 Ultimo Mes", callback_data="rep_todos")],
-    [InlineKeyboardButton("🍎 Ultima Ultimo Año", callback_data="rep_todos")],
+    [InlineKeyboardButton("🌱 Hoy", callback_data="rep_hoy")],
+    [InlineKeyboardButton("🌿 Ultimos 7 dias", callback_data="rep_sem")],
+    [InlineKeyboardButton("🌳 Ultimos 30 dias", callback_data="rep_mes")],
+    [InlineKeyboardButton("🍎 Ultimos 12 meses", callback_data="rep_anyo")],
+    [InlineKeyboardButton("📅 Periodo Especifico", callback_data="rep_per")],
+    [InlineKeyboardButton("🔙 Volver", callback_data="reporte")]
     ])
 
 

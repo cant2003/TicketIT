@@ -7,11 +7,7 @@ from bot.ui.keyboards import boton_volver_menu
 
 
 def _ahora():
-    ahora = datetime.now()
-    return (
-        ahora.strftime("%d-%m-%Y"),
-        ahora.strftime("%H:%M:%S")
-    )
+    return datetime.utcnow()
 #!---------------------------------------------------------
 
 #! Obtencion de tickets abiertos
@@ -57,9 +53,7 @@ def tomar_ticket(ticket_id, usuario):
     ticket.estado = "En Proceso"
     ticket.asignado_a = usuario
 
-    fecha, hora = _ahora()
-    ticket.fecha_actualizacion = fecha
-    ticket.hora_actualizacion = hora
+    ticket.fecha_actualizacion = _ahora()
 
     db.commit()
     db.refresh(ticket)
@@ -79,9 +73,7 @@ def cerrar_ticket(ticket_id):
 
     ticket.estado = "Cerrado"
 
-    fecha, hora = _ahora()
-    ticket.fecha_actualizacion = fecha
-    ticket.hora_actualizacion = hora
+    ticket.fecha_actualizacion = _ahora()
 
     db.commit()
     db.refresh(ticket)
@@ -94,17 +86,11 @@ def cerrar_ticket(ticket_id):
 def crear_ticket(data):
     db = SessionLocal()
 
-    fecha, hora = _ahora()
-
     ticket = Ticket(
         usuario=data["usuario"],
         area=data["area"],
         descripcion=data["descripcion"],
         estado="Abierto",
-        fecha_creacion=fecha,
-        hora_creacion=hora,
-        fecha_actualizacion=fecha,
-        hora_actualizacion=hora,
         chat_id=str(data["chat_id"])
     )
 
@@ -134,9 +120,7 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
     if not ticket.asignado_a:
         ticket.asignado_a = usuario
 
-    ahora = datetime.now()
-    ticket.fecha_actualizacion = ahora.strftime("%d-%m-%Y")
-    ticket.hora_actualizacion = ahora.strftime("%H:%M:%S")
+    ticket.fecha_actualizacion = datetime.utcnow()
 
     db.commit()
     db.refresh(ticket)
@@ -144,22 +128,29 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
 
     return ticket
 #! ------------------------------------
-def enviar_correo(id_ticket, usuario=None, descripcion=None, fecha_creacion=None):
+def enviar_correo(ticket_id):
+
+    db = SessionLocal()
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
     msg = EmailMessage()
-    msg['Subject'] = f"🆕 Ticket Abierto #{id_ticket}, {fecha_creacion}"
+
+    fecha_str = ticket.fecha_creacion.strftime("%d-%m-%Y %H:%M:%S")
+
+    msg['Subject'] = f"🆕 Ticket Abierto #{ticket.id}, {fecha_str}"
     msg['From'] = f'TI-BOT SOPORTE (No-Reply) <{REMITENTE}>'
     msg['To'] = DESTINATARIO
 
     contenido = f"""Se ha abierto un nuevo ticket.
 
-ID: {id_ticket}
-Usuario: {usuario if usuario else 'No especificado'}
-Descripción: {descripcion if descripcion else 'Sin descripción'}
+ID: {ticket.id}
+Usuario: {ticket.usuario if ticket.usuario else 'No especificado'}
+Descripción: {ticket.descripcion if ticket.descripcion else 'Sin descripción'}
+Fecha: {fecha_str}
 """
 
     msg.set_content(contenido)
-
+    db.close()
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com',465) as smtp: 
             smtp.login(REMITENTE, EMAIL_PASS)

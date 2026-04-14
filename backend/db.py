@@ -9,6 +9,9 @@ engine = create_engine("sqlite:///tickets.db", connect_args={"check_same_thread"
 # !Base de modelos
 Base = declarative_base()
 
+def now():
+    return datetime.utcnow()
+
 class Ticket(Base):
     __tablename__ = "tickets"
 
@@ -17,10 +20,8 @@ class Ticket(Base):
     area = Column(String, nullable=False)
     descripcion = Column(String, nullable=False)
     estado = Column(String, default="Abierto")
-    fecha_creacion = Column(String, default=datetime.utcnow().strftime("%d-%m-%Y"))
-    hora_creacion = Column(String, default=datetime.utcnow().strftime("%H:%M:%S"))
-    fecha_actualizacion = Column(String, default=datetime.utcnow().strftime("%d-%m-%Y"))
-    hora_actualizacion = Column(String, default=datetime.utcnow().strftime("%H:%M:%S"))
+    fecha_creacion = Column(DateTime, default=now)
+    fecha_actualizacion = Column(DateTime, default=now, onupdate=now)
     chat_id = Column(String, nullable=False)
     asignado_a = Column(String, nullable=True)
     observacion = Column(String, nullable=True)
