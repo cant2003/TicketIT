@@ -27,3 +27,5 @@ db.sqlite3-journal
 
 # Editor (VS Code)
 .vscode/
+
+tickets.db

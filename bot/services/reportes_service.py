@@ -226,7 +226,7 @@ def enviar_report_correo(archivo_bytes, nombre_archivo):
 #! FILTRAR TODO
 def tickets_todos():
     db = SessionLocal()
-    tickets = db.query(Ticket).all()
+    tickets = db.query(Ticket).order_by(Ticket.id.desc()).limit(10000).all()
     db.close()
     return tickets
 
@@ -240,6 +240,8 @@ def tickets_asignado(asignado):
     tickets = (
         db.query(Ticket)
         .filter(Ticket.asignado_a == asignado, Ticket.estado == "Cerrado")
+        .order_by(Ticket.id.desc())
+        .limit(10000)
         .all()
     )
     db.close()
@@ -251,6 +253,8 @@ def tickets_usuario(usuario):
     tickets = (
         db.query(Ticket)
         .filter(Ticket.usuario == usuario, Ticket.estado == "Cerrado")
+        .order_by(Ticket.id.desc())
+        .limit(10000)
         .all()
     )
     db.close()
@@ -273,6 +277,8 @@ def tickets_ultimo_anyo():
             Ticket.fecha_creacion <= ahora,
             Ticket.estado == "Cerrado",
         )
+        .order_by(Ticket.id.desc())
+        .limit(10000)
         .all()
     )
 
@@ -296,6 +302,8 @@ def tickets_ultimo_mes():
             Ticket.fecha_creacion <= ahora,
             Ticket.estado == "Cerrado",
         )
+        .order_by(Ticket.id.desc())
+        .limit(10000)
         .all()
     )
 
@@ -319,6 +327,8 @@ def tickets_hoy():
             Ticket.fecha_creacion < fin_dia,
             Ticket.estado == "Cerrado",
         )
+        .order_by(Ticket.id.desc())
+        .limit(10000)
         .all()
     )
 
@@ -343,6 +353,8 @@ def tickets_semana_actual():
         .filter(
             Ticket.fecha_creacion >= inicio_semana, Ticket.fecha_creacion < fin_semana
         )
+        .order_by(Ticket.id.desc())
+        .limit(10000)
         .all()
     )
 
@@ -369,6 +381,8 @@ def tickets_por_rango(fecha_inicio_str, fecha_fin_str):
     tickets = (
         db.query(Ticket)
         .filter(Ticket.fecha_creacion >= inicio, Ticket.fecha_creacion < fin)
+        .order_by(Ticket.id.desc())
+        .limit(10000)
         .all()
     )
 

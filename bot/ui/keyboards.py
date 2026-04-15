@@ -72,7 +72,7 @@ def teclado_detalle_proceso(ticket_id):
 def teclado_reportes():
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("📋 Todos", callback_data="rep_todos")],
+            [InlineKeyboardButton("📋 Ultimos 10.000", callback_data="rep_todos")],
             [InlineKeyboardButton("👨‍💻 Por Asignado TI", callback_data="rep_asig")],
             [InlineKeyboardButton("👤 Por Usuario", callback_data="rep_user")],
             [InlineKeyboardButton("⏱️ Por Periodo", callback_data="periodo")],

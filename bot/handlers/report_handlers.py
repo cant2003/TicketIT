@@ -1,3 +1,4 @@
+import asyncio
 import threading
 
 from telegram.ext import ConversationHandler
@@ -50,10 +51,14 @@ async def generar_reportes(origen, context, tickets, nombre_fichero):
             )
         return
 
-    archivo = rs.generar_excel(tickets)
+    msg = await responder("⏳ Generando reporte...", reply_markup=boton_volver_menu())
+
+    archivo = await asyncio.to_thread(rs.generar_excel, tickets)
 
     if hasattr(archivo, "seek"):
         archivo.seek(0)
+
+    await msg.edit_text("✅ Reporte generado.")
 
     await context.bot.send_document(
         chat_id=chat_id, document=archivo, filename=nombre_fichero
@@ -73,7 +78,7 @@ async def generar_reportes(origen, context, tickets, nombre_fichero):
         ).start()
 
         await responder(
-            "📧 Copia de reporte se está enviando al correo...",
+            "📧 Copia de reporte enviada al correo.",
             reply_markup=boton_volver_menu(),
         )
 
@@ -99,7 +104,7 @@ async def reporte_todos(update, context):
     if query:
         await query.answer()
 
-    tickets = rs.tickets_todos()
+    tickets = await asyncio.to_thread(rs.tickets_todos)
 
     titulo = "Reporte Todos Tickets"
 
@@ -115,7 +120,7 @@ async def reporte_asignado(update, context):
 
     context.user_data["asignado"] = texto
 
-    tickets = rs.tickets_asignado(texto)
+    tickets = await asyncio.to_thread(rs.tickets_asignado, texto)
 
     titulo = "Reportes Tickest Asignados a {texto}"
 
@@ -133,7 +138,7 @@ async def reporte_usuario(update, context):
 
     context.user_data["usuario"] = texto
 
-    tickets = rs.tickets_usuario(texto)
+    tickets = await asyncio.to_thread(rs.tickets_usuario, texto)
 
     titulo = f"Reportes Tickest del Usuario {texto}"
 
@@ -147,7 +152,7 @@ async def reporte_anyo(update, context):
     query = update.callback_query
     await query.answer()
 
-    tickets = rs.tickets_ultimo_anyo()
+    tickets = await asyncio.to_thread(rs.tickets_ultimo_anyo)
 
     titulo = "Reporte Ultimos 12 meses "
 
@@ -160,7 +165,7 @@ async def reporte_mes(update, context):
     query = update.callback_query
     await query.answer()
 
-    tickets = rs.tickets_ultimo_mes()
+    tickets = await asyncio.to_thread(rs.tickets_ultimo_mes)
 
     titulo = "Reporte Ultimos 30 Dias"
 
@@ -173,7 +178,7 @@ async def reporte_hoy(update, context):
     query = update.callback_query
     await query.answer()
 
-    tickets = rs.tickets_hoy()
+    tickets = await asyncio.to_thread(rs.tickets_hoy)
 
     titulo = "Reporte Hoy"
 
@@ -186,7 +191,7 @@ async def reporte_semana(update, context):
     query = update.callback_query
     await query.answer()
 
-    tickets = rs.tickets_semana_actual()
+    tickets = await asyncio.to_thread(rs.tickets_semana_actual)
 
     titulo = "Reporte Ultimos 7 dias"
     await generar_reportes(query, context, tickets, nombre_reporte(titulo))
@@ -217,7 +222,7 @@ async def recibir_fin(update, context):
     fecha_fin = update.message.text
 
     try:
-        tickets = rs.tickets_por_rango(fecha_inicio, fecha_fin)
+        tickets = await asyncio.to_thread(rs.tickets_por_rango, fecha_inicio, fecha_fin)
 
         nombre_archivo = f"Reporte Periodo {fecha_inicio}Hasta{fecha_fin}.xlsx"
 

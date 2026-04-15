@@ -81,7 +81,7 @@ conv_handler = ConversationHandler(
         ],
         RANGO_FIN: [
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^canelar"),
+                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar"),
                 recibir_fin,
             )
         ],
@@ -89,7 +89,7 @@ conv_handler = ConversationHandler(
     fallbacks=[
         MessageHandler(filters.Regex("(?i)^cancelar$"), cancelar_global),
         CommandHandler("cancelar", cancelar_global),
-    ],
+    ]
 )
 
 app.add_handler(conv_handler)
