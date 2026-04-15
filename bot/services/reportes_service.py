@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from email.message import EmailMessage
 from io import BytesIO
 
+
 import pandas as pd
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
@@ -239,7 +240,7 @@ def tickets_asignado(asignado):
     db = SessionLocal()
     tickets = (
         db.query(Ticket)
-        .filter(Ticket.asignado_a == asignado, Ticket.estado == "Cerrado")
+        .filter(Ticket.asignado_a.ilike(f"%{asignado}%"), Ticket.estado == "Cerrado")
         .order_by(Ticket.id.desc())
         .limit(10000)
         .all()
@@ -252,7 +253,7 @@ def tickets_usuario(usuario):
     db = SessionLocal()
     tickets = (
         db.query(Ticket)
-        .filter(Ticket.usuario == usuario, Ticket.estado == "Cerrado")
+        .filter(Ticket.usuario.ilike(f"%{usuario}%"), Ticket.estado == "Cerrado")
         .order_by(Ticket.id.desc())
         .limit(10000)
         .all()
