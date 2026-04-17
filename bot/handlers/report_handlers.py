@@ -7,6 +7,7 @@ from bot.services import reportes_service as rs
 from bot.services import tickets_service as ts
 from bot.ui.keyboards import boton_volver, boton_volver_menu
 
+from bot.services.google_sheets_service import export_sheet_as_xlsx
 
 async def mostrar_menu_reportes(update, context):
     query = update.callback_query
@@ -53,7 +54,7 @@ async def generar_reportes(origen, context, tickets, nombre_fichero):
 
     msg = await responder("⏳ Generando reporte...", reply_markup=boton_volver_menu())
 
-    archivo = await asyncio.to_thread(rs.generar_excel, tickets)
+    archivo = await asyncio.to_thread(export_sheet_as_xlsx)
 
     if hasattr(archivo, "seek"):
         archivo.seek(0)

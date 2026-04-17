@@ -5,6 +5,7 @@ from email.message import EmailMessage
 from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO,USUARIOS_TI
 from bot.ui.keyboards import boton_volver_menu
 
+from bot.services.google_sheets_service import upsert_ticket_en_sheet
 
 def _ahora():
     return datetime.utcnow()
@@ -59,6 +60,11 @@ def tomar_ticket(ticket_id, usuario):
     db.refresh(ticket)
     db.close()
 
+    try:
+        upsert_ticket_en_sheet(ticket)
+    except Exception as e:
+        print("Error sincronizando Google Sheets al tomar ticket:", e)
+    
     return ticket
 #!---------------------------------------------------------
 
@@ -98,6 +104,11 @@ def crear_ticket(data):
     db.commit()
     db.refresh(ticket)
     db.close()
+    
+    try:
+        upsert_ticket_en_sheet(ticket)
+    except Exception as e:
+        print("Error sincronizando Google Sheets al crear ticket:", e)
 
     return ticket
 # !___________________________________________________
@@ -125,6 +136,11 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
     db.commit()
     db.refresh(ticket)
     db.close()
+    
+    try:
+        upsert_ticket_en_sheet(ticket)
+    except Exception as e:
+        print("Error actualizando Google Sheets al crear ticket:", e)
 
     return ticket
 #! ------------------------------------

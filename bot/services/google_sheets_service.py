@@ -36,24 +36,181 @@ def _get_drive_service():
     return build("drive", "v3", credentials=creds)
 
 
+def _resolver_sheet_name():
+    sheets = _get_sheets_service()
+    respuesta = sheets.spreadsheets().get(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID
+    ).execute()
+
+    pestañas = respuesta.get("sheets", [])
+    titulos = [
+        s.get("properties", {}).get("title", "")
+        for s in pestañas
+    ]
+
+    if GOOGLE_SHEET_NAME and GOOGLE_SHEET_NAME in titulos:
+        return GOOGLE_SHEET_NAME
+
+    if not titulos:
+        raise ValueError("El spreadsheet no tiene pestañas disponibles")
+
+    return titulos[0]
+
+
+def _sheet_range(a1_range: str) -> str:
+    real_sheet_name = _resolver_sheet_name()
+    safe_sheet_name = real_sheet_name.replace("'", "''")
+    return f"'{safe_sheet_name}'!{a1_range}"
+
+
 def _normalizar_valor(valor):
     return "" if valor is None else str(valor)
 
 
+def _ticket_to_row(ticket):
+    return [
+        _normalizar_valor(ticket.id),
+        _normalizar_valor(ticket.usuario),
+        _normalizar_valor(ticket.area),
+        _normalizar_valor(ticket.descripcion),
+        _normalizar_valor(ticket.estado),
+        _normalizar_valor(
+            ticket.fecha_creacion.strftime("%d-%m-%Y %H:%M:%S")
+            if ticket.fecha_creacion else ""
+        ),
+        _normalizar_valor(ticket.asignado_a or "Sin asignar"),
+        _normalizar_valor(ticket.observacion or "Sin observaciones"),
+        _normalizar_valor(
+            ticket.fecha_actualizacion.strftime("%d-%m-%Y %H:%M:%S")
+            if ticket.fecha_actualizacion else ""
+        ),
+    ]
+
+
+def _headers():
+    return [
+        "ID",
+        "Usuario",
+        "Area",
+        "Descripcion",
+        "Estado",
+        "Fecha Creacion",
+        "TI Asignado",
+        "Observacion TI",
+        "Fecha Actualiz.",
+    ]
+
+
+def inicializar_sheet_si_esta_vacia():
+    """
+    Crea título, timestamp y headers si la hoja está vacía.
+    No toca filas existentes.
+    """
+    sheets = _get_sheets_service()
+
+    lectura = sheets.spreadsheets().values().get(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID,
+        range=_sheet_range("A1:I3"),
+    ).execute()
+
+    values = lectura.get("values", [])
+
+    if values:
+        return
+
+    payload = [
+        ["Reporte de Tickets"],
+        [f"Última sincronización: {rs.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"],
+        _headers(),
+    ]
+
+    sheets.spreadsheets().values().update(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID,
+        range=_sheet_range("A1"),
+        valueInputOption="RAW",
+        body={"values": payload},
+    ).execute()
+
+
+def actualizar_timestamp_sheet():
+    sheets = _get_sheets_service()
+
+    sheets.spreadsheets().values().update(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID,
+        range=_sheet_range("A2"),
+        valueInputOption="RAW",
+        body={
+            "values": [[
+                f"Última sincronización: {rs.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+            ]]
+        },
+    ).execute()
+
+
+def buscar_fila_por_ticket_id(ticket_id):
+    """
+    Busca el ticket por ID en la columna A, desde la fila 4 hacia abajo.
+    Devuelve el número de fila real de Google Sheets o None.
+    """
+    sheets = _get_sheets_service()
+
+    lectura = sheets.spreadsheets().values().get(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID,
+        range=_sheet_range("A4:A"),
+    ).execute()
+
+    values = lectura.get("values", [])
+
+    ticket_id = str(ticket_id).strip()
+
+    for index, row in enumerate(values, start=4):
+        if row and str(row[0]).strip() == ticket_id:
+            return index
+
+    return None
+
+
+def upsert_ticket_en_sheet(ticket):
+    """
+    Si el ticket existe, actualiza su fila.
+    Si no existe, lo agrega al final.
+    """
+    inicializar_sheet_si_esta_vacia()
+
+    sheets = _get_sheets_service()
+    fila = _ticket_to_row(ticket)
+    fila_existente = buscar_fila_por_ticket_id(ticket.id)
+
+    if fila_existente:
+        sheets.spreadsheets().values().update(
+            spreadsheetId=GOOGLE_SPREADSHEET_ID,
+            range=_sheet_range(f"A{fila_existente}:I{fila_existente}"),
+            valueInputOption="RAW",
+            body={"values": [fila]},
+        ).execute()
+    else:
+        sheets.spreadsheets().values().append(
+            spreadsheetId=GOOGLE_SPREADSHEET_ID,
+            range=_sheet_range("A4:I"),
+            valueInputOption="RAW",
+            insertDataOption="INSERT_ROWS",
+            body={"values": [fila]},
+        ).execute()
+
+    actualizar_timestamp_sheet()
+
+
 def sync_tickets_to_sheet():
     """
-    Sincroniza TODOS los tickets desde SQLite hacia Google Sheets.
-    La BD sigue siendo la fuente real.
+    Reconstrucción completa.
+    Déjala solo para mantenimiento/manual.
     """
-    if not GOOGLE_SPREADSHEET_ID:
-        raise ValueError("Falta GOOGLE_SPREADSHEET_ID en .env")
-
+    sheets = _get_sheets_service()
     tickets = rs.tickets_todos()
     df = rs.construir_dataframe(tickets)
     df = rs.ordenar_dataframe(df)
 
     headers = list(df.columns)
-
     rows = []
     for _, row in df.iterrows():
         rows.append([_normalizar_valor(v) for v in row.tolist()])
@@ -65,30 +222,21 @@ def sync_tickets_to_sheet():
         *rows,
     ]
 
-    sheets = _get_sheets_service()
-
-    # Limpia solo valores; conserva formato si luego lo agregas en la hoja.
     sheets.spreadsheets().values().clear(
         spreadsheetId=GOOGLE_SPREADSHEET_ID,
-        range=f"{GOOGLE_SHEET_NAME}!A:Z",
+        range=_sheet_range("A:I"),
         body={},
     ).execute()
 
     sheets.spreadsheets().values().update(
         spreadsheetId=GOOGLE_SPREADSHEET_ID,
-        range=f"{GOOGLE_SHEET_NAME}!A1",
+        range=_sheet_range("A1"),
         valueInputOption="RAW",
         body={"values": values},
     ).execute()
 
 
 def export_sheet_as_xlsx():
-    """
-    Exporta el Google Sheet a XLSX y lo devuelve en memoria.
-    """
-    if not GOOGLE_SPREADSHEET_ID:
-        raise ValueError("Falta GOOGLE_SPREADSHEET_ID en .env")
-
     drive = _get_drive_service()
 
     contenido = drive.files().export(
@@ -102,11 +250,18 @@ def export_sheet_as_xlsx():
 
 
 def verificar_conexion_google():
-    """
-    Prueba simple para validar credenciales y acceso a la hoja.
-    """
     sheets = _get_sheets_service()
     respuesta = sheets.spreadsheets().get(
         spreadsheetId=GOOGLE_SPREADSHEET_ID
     ).execute()
-    return respuesta.get("properties", {}).get("title", "Sin título")
+
+    titulo = respuesta.get("properties", {}).get("title", "Sin título")
+    pestañas = [
+        s.get("properties", {}).get("title", "Sin nombre")
+        for s in respuesta.get("sheets", [])
+    ]
+
+    return {
+        "spreadsheet_title": titulo,
+        "sheet_titles": pestañas,
+    }
