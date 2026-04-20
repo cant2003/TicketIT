@@ -10,6 +10,8 @@ from bot.config import (
 )
 from bot.services import reportes_service as rs
 
+from bot.services.row_map_service import obtener_fila_ticket, guardar_fila_ticket
+
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -57,9 +59,38 @@ def _resolver_sheet_name():
     return titulos[0]
 
 
+_cached_sheet_name = None
+
+def _get_cached_sheet_name():
+    global _cached_sheet_name
+
+    if _cached_sheet_name:
+        return _cached_sheet_name
+
+    sheets = _get_sheets_service()
+    respuesta = sheets.spreadsheets().get(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID
+    ).execute()
+
+    pestañas = respuesta.get("sheets", [])
+    titulos = [
+        s.get("properties", {}).get("title", "")
+        for s in pestañas
+    ]
+
+    if GOOGLE_SHEET_NAME and GOOGLE_SHEET_NAME in titulos:
+        _cached_sheet_name = GOOGLE_SHEET_NAME
+    elif titulos:
+        _cached_sheet_name = titulos[0]
+    else:
+        raise ValueError("El spreadsheet no tiene pestañas")
+
+    return _cached_sheet_name
+
+
 def _sheet_range(a1_range: str) -> str:
-    real_sheet_name = _resolver_sheet_name()
-    safe_sheet_name = real_sheet_name.replace("'", "''")
+    sheet_name = _get_cached_sheet_name()
+    safe_sheet_name = sheet_name.replace("'", "''")
     return f"'{safe_sheet_name}'!{a1_range}"
 
 
@@ -172,24 +203,42 @@ def buscar_fila_por_ticket_id(ticket_id):
 
 def upsert_ticket_en_sheet(ticket):
     """
-    Si el ticket existe, actualiza su fila.
-    Si no existe, lo agrega al final.
+    Si el ticket ya tiene fila registrada localmente, actualiza directo.
+    Si no, lo agrega al final y guarda su fila.
     """
     inicializar_sheet_si_esta_vacia()
 
     sheets = _get_sheets_service()
     fila = _ticket_to_row(ticket)
-    fila_existente = buscar_fila_por_ticket_id(ticket.id)
+
+    fila_existente = obtener_fila_ticket(ticket.id)
 
     if fila_existente:
-        sheets.spreadsheets().values().update(
-            spreadsheetId=GOOGLE_SPREADSHEET_ID,
-            range=_sheet_range(f"A{fila_existente}:I{fila_existente}"),
-            valueInputOption="RAW",
-            body={"values": [fila]},
-        ).execute()
+        try:
+            sheets.spreadsheets().values().update(
+                spreadsheetId=GOOGLE_SPREADSHEET_ID,
+                range=_sheet_range(f"A{fila_existente}:I{fila_existente}"),
+                valueInputOption="RAW",
+                body={"values": [fila]},
+            ).execute()
+        except Exception:
+        # fallback: volver a insertar si la fila ya no existe
+            respuesta = sheets.spreadsheets().values().append(
+                spreadsheetId=GOOGLE_SPREADSHEET_ID,
+                range=_sheet_range("A4:I"),
+                valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS",
+                body={"values": [fila]},
+            ).execute()
+
+            updated_range = respuesta.get("updates", {}).get("updatedRange", "")
+            if "!" in updated_range:
+                rango_sin_hoja = updated_range.split("!")[1]
+                fila_inicio = rango_sin_hoja.split(":")[0]
+                numero_fila = int("".join(filter(str.isdigit, fila_inicio)))
+                guardar_fila_ticket(ticket.id, numero_fila)
     else:
-        sheets.spreadsheets().values().append(
+        respuesta = sheets.spreadsheets().values().append(
             spreadsheetId=GOOGLE_SPREADSHEET_ID,
             range=_sheet_range("A4:I"),
             valueInputOption="RAW",
@@ -197,8 +246,15 @@ def upsert_ticket_en_sheet(ticket):
             body={"values": [fila]},
         ).execute()
 
-    actualizar_timestamp_sheet()
+        updated_range = respuesta.get("updates", {}).get("updatedRange", "")
+        # ejemplo: "'Tickets'!A7:I7"
+        if "!" in updated_range:
+            rango_sin_hoja = updated_range.split("!")[1]
+            fila_inicio = rango_sin_hoja.split(":")[0]
+            numero_fila = int("".join(filter(str.isdigit, fila_inicio)))
+            guardar_fila_ticket(ticket.id, numero_fila)
 
+    actualizar_timestamp_sheet()
 
 def sync_tickets_to_sheet():
     """

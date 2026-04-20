@@ -5,7 +5,7 @@ from email.message import EmailMessage
 from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO,USUARIOS_TI
 from bot.ui.keyboards import boton_volver_menu
 
-from bot.services.google_sheets_service import upsert_ticket_en_sheet
+from bot.services.sync_jobs_service import crear_job_sync
 
 def _ahora():
     return datetime.utcnow()
@@ -61,7 +61,7 @@ def tomar_ticket(ticket_id, usuario):
     db.close()
 
     try:
-        upsert_ticket_en_sheet(ticket)
+        crear_job_sync(ticket.id)
     except Exception as e:
         print("Error sincronizando Google Sheets al tomar ticket:", e)
     
@@ -80,10 +80,18 @@ def cerrar_ticket(ticket_id):
     ticket.estado = "Cerrado"
 
     ticket.fecha_actualizacion = _ahora()
+    
+    
 
     db.commit()
     db.refresh(ticket)
     db.close()
+    
+    try:
+        crear_job_sync(ticket.id)
+    except Exception as e:
+        print("Error actualizando Google Sheets al crear ticket:", e)
+
 
     return ticket
 #!---------------------------------------------------------
@@ -106,7 +114,7 @@ def crear_ticket(data):
     db.close()
     
     try:
-        upsert_ticket_en_sheet(ticket)
+        crear_job_sync(ticket.id)
     except Exception as e:
         print("Error sincronizando Google Sheets al crear ticket:", e)
 
@@ -137,11 +145,7 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
     db.refresh(ticket)
     db.close()
     
-    try:
-        upsert_ticket_en_sheet(ticket)
-    except Exception as e:
-        print("Error actualizando Google Sheets al crear ticket:", e)
-
+    
     return ticket
 #! ------------------------------------
 def enviar_correo(ticket_id):

@@ -30,6 +30,26 @@ class Ticket(Base):
     chat_id = Column(String, nullable=False)
     asignado_a = Column(String, nullable=True)
     observacion = Column(String, nullable=True)
+    
+class SyncJob(Base):
+    __tablename__ = "syncjobs"
+    
+    id= Column(Integer, primary_key=True, index=True)
+    ticket_id = Column(Integer, nullable=False, index= True)
+    accion = Column(String,nullable=False, default="insertar")
+    estado = Column(String, nullable=False, default="pendiente", index=True)
+    reintentos = Column(Integer, nullable=False, default=0)
+    mensaje_error = Column(String, nullable=True)
+    creado = Column(DateTime, default=now)
+    actualizado = Column(DateTime, default=now, onupdate=now)
+
+class SheetRowMap(Base):
+    __tablename__ ="sheet_row_map"
+    
+    ticket_id = Column(Integer, primary_key=True, index=True)
+    row_number = Column(Integer, nullable=False)
+    creado = Column(DateTime, default=now)
+    actualizado = Column(DateTime, default=now, onupdate=now)
 
 
 Base.metadata.create_all(bind=engine)
