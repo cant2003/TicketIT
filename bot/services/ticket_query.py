@@ -1,5 +1,6 @@
-from backend.db import Ticket, get_db
 from datetime import datetime, timedelta
+
+from backend.db import SessionLocal, Ticket, get_db
 
 #! FILTRAR TODO
 def tickets_todos():
@@ -14,7 +15,7 @@ def tickets_todos():
 #! FILTRAR POR Asignado
 def tickets_asignado(asignado):
     with get_db() as db:
-        return(
+        return (
             db.query(Ticket)
             .filter(
                 Ticket.asignado_a.ilike(f"%{asignado}%"), 
@@ -27,7 +28,7 @@ def tickets_asignado(asignado):
 #!--------------------------------------------------------
 def tickets_usuario(usuario):
     with get_db() as db:
-        return(
+        return (
             db.query(Ticket)
             .filter(
                 Ticket.usuario.ilike(f"%{usuario}%"), 
