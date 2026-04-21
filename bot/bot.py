@@ -32,61 +32,23 @@ from bot.handlers.user_handlers import (
     ver_estado,
 )
 
+TEXT_INPUT = filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$")
 
-def build_application() -> Application:
-    application = Application.builder().token(TOKEN).updater(None).build()
+def _text_handler(callback):
+    return MessageHandler(TEXT_INPUT, callback)
 
-    conv_handler = ConversationHandler(
+def _build_conversation_handler():
+    return ConversationHandler(
         entry_points=[CallbackQueryHandler(botones)],
         states={
-            AREA: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    recibir_area,
-                )
-            ],
-            DESCRIPCION: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    recibir_descripcion,
-                )
-            ],
-            ESTADO_ID: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    ver_estado,
-                )
-            ],
-            OBSERVACION: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    recibir_observacion,
-                )
-            ],
-            ESPERANDO_ASIGNADO: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    reporte_asignado,
-                )
-            ],
-            ESPERANDO_USUARIO: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    reporte_usuario,
-                )
-            ],
-            RANGO_INICIO: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    recibir_inicio,
-                )
-            ],
-            RANGO_FIN: [
-                MessageHandler(
-                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                    recibir_fin,
-                )
-            ],
+            AREA: [_text_handler(recibir_area)],
+            DESCRIPCION: [_text_handler(recibir_descripcion)],
+            ESTADO_ID: [_text_handler(ver_estado)],
+            OBSERVACION: [_text_handler(recibir_observacion)],
+            ESPERANDO_ASIGNADO: [_text_handler(reporte_asignado)],
+            ESPERANDO_USUARIO: [_text_handler(reporte_usuario)],
+            RANGO_INICIO: [_text_handler(recibir_inicio)],
+            RANGO_FIN: [_text_handler(recibir_fin)],
         },
         fallbacks=[
             MessageHandler(filters.Regex("(?i)^cancelar$"), cancelar_global),
@@ -94,7 +56,10 @@ def build_application() -> Application:
         ],
     )
 
-    application.add_handler(conv_handler)
+def build_application() -> Application:
+    application = Application.builder().token(TOKEN).updater(None).build()
+
+    application.add_handler(_build_conversation_handler())
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
 
