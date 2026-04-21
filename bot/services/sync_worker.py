@@ -112,7 +112,7 @@ def procesar_job(job):
 
 
 def iniciar_worker():
-    print("🟢 Worker de sincronización iniciado...")
+    print("Worker de sincronización iniciado...")
     resetear_jobs_procesando()
 
     while True:

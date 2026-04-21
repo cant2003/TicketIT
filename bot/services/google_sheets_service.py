@@ -76,10 +76,10 @@ def _resolver_sheet_name():
         spreadsheetId=GOOGLE_SPREADSHEET_ID
     ).execute()
 
-    pestañas = respuesta.get("sheets", [])
+    pestanas = respuesta.get("sheets", [])
     titulos = [
         s.get("properties", {}).get("title", "")
-        for s in pestañas
+        for s in pestanas
     ]
 
     if GOOGLE_SHEET_NAME and GOOGLE_SHEET_NAME in titulos:
@@ -87,7 +87,7 @@ def _resolver_sheet_name():
     elif titulos:
         _cached_sheet_name = titulos[0]
     else:
-        raise ValueError("El spreadsheet no tiene pestañas disponibles")
+        raise ValueError("El spreadsheet no tiene pestanas disponibles")
 
     return _cached_sheet_name
 
@@ -157,6 +157,58 @@ def _guardar_fila_desde_respuesta(ticket_id: int, respuesta):
         guardar_fila_ticket(ticket_id, numero_fila)
 
 
+def _leer_valor_celda(a1_range: str):
+    sheets = _get_sheets_service()
+
+    respuesta = sheets.spreadsheets().values().get(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID,
+        range=_sheet_range(a1_range),
+    ).execute()
+
+    values = respuesta.get("values", [])
+
+    if not values or not values[0]:
+        return None
+
+    return values[0][0]
+
+
+def _fila_contiene_ticket(ticket_id: int, row_number: int):
+    valor = _leer_valor_celda(f"A{row_number}")
+    return str(valor) == str(ticket_id)
+
+
+def _buscar_fila_ticket(ticket_id: int):
+    sheets = _get_sheets_service()
+
+    respuesta = sheets.spreadsheets().values().get(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID,
+        range=_sheet_range("A4:A"),
+    ).execute()
+
+    values = respuesta.get("values", [])
+
+    for index, row in enumerate(values, start=4):
+        if row and str(row[0]) == str(ticket_id):
+            return index
+
+    return None
+
+
+def _resolver_fila_ticket(ticket_id: int):
+    fila_guardada = obtener_fila_ticket(ticket_id)
+
+    if fila_guardada and _fila_contiene_ticket(ticket_id, fila_guardada):
+        return fila_guardada
+
+    fila_encontrada = _buscar_fila_ticket(ticket_id)
+
+    if fila_encontrada:
+        guardar_fila_ticket(ticket_id, fila_encontrada)
+
+    return fila_encontrada
+
+
 def inicializar_sheet_si_esta_vacia():
     """
     Crea título, timestamp y headers si la hoja está vacía.
@@ -215,14 +267,15 @@ def _append_ticket_row(sheets, fila):
 
 def upsert_ticket_en_sheet(ticket):
     """
-    Si el ticket ya tiene fila registrada localmente, actualiza directo.
-    Si no, lo agrega al final y guarda su fila.
+    Si el ticket ya existe en Sheets, actualiza su fila real.
+    Si el mapa local está desactualizado, busca el ticket por ID en columna A.
+    Si no existe, lo agrega al final.
     """
     inicializar_sheet_si_esta_vacia()
 
     sheets = _get_sheets_service()
     fila = _ticket_to_row(ticket)
-    fila_existente = obtener_fila_ticket(ticket.id)
+    fila_existente = _resolver_fila_ticket(ticket.id)
 
     if fila_existente:
         try:
@@ -303,14 +356,14 @@ def verificar_conexion_google():
     ).execute()
 
     titulo = respuesta.get("properties", {}).get("title", "Sin título")
-    pestañas = [
+    pestanas = [
         s.get("properties", {}).get("title", "Sin nombre")
         for s in respuesta.get("sheets", [])
     ]
 
     return {
         "spreadsheet_title": titulo,
-        "sheet_titles": pestañas,
+        "sheet_titles": pestanas,
     }
 
 
