@@ -1,13 +1,11 @@
-import os
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from telegram import Update
 
 from bot.bot import build_application
-
-WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/telegram/webhook")
-TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+from bot.config import WEBHOOK_PATH, TELEGRAM_WEBHOOK_SECRET
 
 application = build_application()
 

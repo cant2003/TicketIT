@@ -1,14 +1,9 @@
 import asyncio
-import os
 
 from telegram import Bot
 from telegram.constants import UpdateType
 
-from bot.config import TOKEN
-
-WEBHOOK_BASE_URL = os.getenv("WEBHOOK_BASE_URL", "").rstrip("/")
-WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/telegram/webhook")
-TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+from bot.config import TELEGRAM_WEBHOOK_SECRET, TOKEN, WEBHOOK_BASE_URL, WEBHOOK_PATH
 
 
 async def main():
