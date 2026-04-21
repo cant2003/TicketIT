@@ -9,7 +9,6 @@ from bot.config import (
     GOOGLE_SHEET_NAME,
 )
 from bot.services import reportes_service as rs
-
 from bot.services.row_map_service import obtener_fila_ticket, guardar_fila_ticket
 
 SCOPES = [
@@ -17,54 +16,57 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
+_cached_credentials = None
+_cached_sheets_service = None
+_cached_drive_service = None
+_cached_sheet_name = None
+
 
 def _get_credentials():
+    global _cached_credentials
+
+    if _cached_credentials is not None:
+        return _cached_credentials
+
     if not GOOGLE_SERVICE_ACCOUNT_FILE:
         raise ValueError("Falta GOOGLE_SERVICE_ACCOUNT_FILE en .env")
 
-    return Credentials.from_service_account_file(
+    _cached_credentials = Credentials.from_service_account_file(
         GOOGLE_SERVICE_ACCOUNT_FILE,
         scopes=SCOPES,
     )
 
+    return _cached_credentials
+
 
 def _get_sheets_service():
+    global _cached_sheets_service
+
+    if _cached_sheets_service is not None:
+        return _cached_sheets_service
+
     creds = _get_credentials()
-    return build("sheets", "v4", credentials=creds)
+    _cached_sheets_service = build("sheets", "v4", credentials=creds)
+
+    return _cached_sheets_service
 
 
 def _get_drive_service():
+    global _cached_drive_service
+
+    if _cached_drive_service is not None:
+        return _cached_drive_service
+
     creds = _get_credentials()
-    return build("drive", "v3", credentials=creds)
+    _cached_drive_service = build("drive", "v3", credentials=creds)
+
+    return _cached_drive_service
 
 
 def _resolver_sheet_name():
-    sheets = _get_sheets_service()
-    respuesta = sheets.spreadsheets().get(
-        spreadsheetId=GOOGLE_SPREADSHEET_ID
-    ).execute()
-
-    pestañas = respuesta.get("sheets", [])
-    titulos = [
-        s.get("properties", {}).get("title", "")
-        for s in pestañas
-    ]
-
-    if GOOGLE_SHEET_NAME and GOOGLE_SHEET_NAME in titulos:
-        return GOOGLE_SHEET_NAME
-
-    if not titulos:
-        raise ValueError("El spreadsheet no tiene pestañas disponibles")
-
-    return titulos[0]
-
-
-_cached_sheet_name = None
-
-def _get_cached_sheet_name():
     global _cached_sheet_name
 
-    if _cached_sheet_name:
+    if _cached_sheet_name is not None:
         return _cached_sheet_name
 
     sheets = _get_sheets_service()
@@ -83,13 +85,13 @@ def _get_cached_sheet_name():
     elif titulos:
         _cached_sheet_name = titulos[0]
     else:
-        raise ValueError("El spreadsheet no tiene pestañas")
+        raise ValueError("El spreadsheet no tiene pestañas disponibles")
 
     return _cached_sheet_name
 
 
 def _sheet_range(a1_range: str) -> str:
-    sheet_name = _get_cached_sheet_name()
+    sheet_name = _resolver_sheet_name()
     safe_sheet_name = sheet_name.replace("'", "''")
     return f"'{safe_sheet_name}'!{a1_range}"
 
@@ -178,29 +180,6 @@ def actualizar_timestamp_sheet():
     ).execute()
 
 
-def buscar_fila_por_ticket_id(ticket_id):
-    """
-    Busca el ticket por ID en la columna A, desde la fila 4 hacia abajo.
-    Devuelve el número de fila real de Google Sheets o None.
-    """
-    sheets = _get_sheets_service()
-
-    lectura = sheets.spreadsheets().values().get(
-        spreadsheetId=GOOGLE_SPREADSHEET_ID,
-        range=_sheet_range("A4:A"),
-    ).execute()
-
-    values = lectura.get("values", [])
-
-    ticket_id = str(ticket_id).strip()
-
-    for index, row in enumerate(values, start=4):
-        if row and str(row[0]).strip() == ticket_id:
-            return index
-
-    return None
-
-
 def upsert_ticket_en_sheet(ticket):
     """
     Si el ticket ya tiene fila registrada localmente, actualiza directo.
@@ -221,8 +200,11 @@ def upsert_ticket_en_sheet(ticket):
                 valueInputOption="RAW",
                 body={"values": [fila]},
             ).execute()
-        except Exception:
-        # fallback: volver a insertar si la fila ya no existe
+        except Exception as e:
+            print(
+                f"Error actualizando fila existente en Sheets para ticket {ticket.id}: {e}"
+            )
+
             respuesta = sheets.spreadsheets().values().append(
                 spreadsheetId=GOOGLE_SPREADSHEET_ID,
                 range=_sheet_range("A4:I"),
@@ -247,7 +229,6 @@ def upsert_ticket_en_sheet(ticket):
         ).execute()
 
         updated_range = respuesta.get("updates", {}).get("updatedRange", "")
-        # ejemplo: "'Tickets'!A7:I7"
         if "!" in updated_range:
             rango_sin_hoja = updated_range.split("!")[1]
             fila_inicio = rango_sin_hoja.split(":")[0]
@@ -255,6 +236,7 @@ def upsert_ticket_en_sheet(ticket):
             guardar_fila_ticket(ticket.id, numero_fila)
 
     actualizar_timestamp_sheet()
+
 
 def sync_tickets_to_sheet():
     """
@@ -321,3 +303,15 @@ def verificar_conexion_google():
         "spreadsheet_title": titulo,
         "sheet_titles": pestañas,
     }
+
+
+def reset_google_services_cache():
+    global _cached_credentials
+    global _cached_sheets_service
+    global _cached_drive_service
+    global _cached_sheet_name
+
+    _cached_credentials = None
+    _cached_sheets_service = None
+    _cached_drive_service = None
+    _cached_sheet_name = None

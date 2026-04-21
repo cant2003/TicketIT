@@ -3,6 +3,10 @@ import time
 from backend.db import SessionLocal, SyncJob, Ticket
 from bot.services.google_sheets_service import upsert_ticket_en_sheet
 
+MAX_REINTENTOS = 3
+TIEMPO_ESPERA_SIN_JOBS = 2
+TIEMPO_ESPERA_TRAS_ERROR = 3
+
 
 def obtener_job_pendiente(db):
     return (
@@ -29,13 +33,28 @@ def procesar_job(job, db):
 
         job.estado = "completado"
         job.mensaje_error = None
+
         print(f"Job {job.id} completado correctamente")
 
     except Exception as e:
-        job.estado = "error"
         job.reintentos += 1
         job.mensaje_error = str(e)
-        print(f"Job {job.id} falló: {e}")
+
+        if job.reintentos < MAX_REINTENTOS:
+            job.estado = "pendiente"
+            print(
+                f"Job {job.id} falló "
+                f"(intento {job.reintentos}/{MAX_REINTENTOS}). "
+                f"Se reintentará. Error: {e}"
+            )
+        else:
+            job.estado = "error"
+            print(
+                f"Job {job.id} falló definitivamente tras "
+                f"{job.reintentos} intentos. Error: {e}"
+            )
+
+        time.sleep(TIEMPO_ESPERA_TRAS_ERROR)
 
     finally:
         db.commit()
@@ -51,13 +70,18 @@ def iniciar_worker():
             job = obtener_job_pendiente(db)
 
             if not job:
-                time.sleep(2)
+                time.sleep(TIEMPO_ESPERA_SIN_JOBS)
                 continue
 
             procesar_job(job, db)
 
         except Exception as e:
-            print("Error en worker:", e)
+            print(f"Error general en worker: {e}")
+            time.sleep(TIEMPO_ESPERA_TRAS_ERROR)
 
         finally:
             db.close()
+
+
+if __name__ == "__main__":
+    iniciar_worker()    

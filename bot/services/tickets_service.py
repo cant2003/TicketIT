@@ -145,6 +145,10 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
     db.refresh(ticket)
     db.close()
     
+    try:
+        crear_job_sync(ticket.id)
+    except Exception as e:
+        print("Error sincronizando Google Sheets al crear ticket:", e)
     
     return ticket
 #! ------------------------------------
