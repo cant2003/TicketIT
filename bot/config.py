@@ -22,7 +22,7 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 USUARIOS_TI = _get_env_list(
     "CRISTIAN_ID",
-    "USUARIO_2",
+    # "USUARIO_2",
 )
 
 # Email

@@ -36,9 +36,11 @@ async def recibir_descripcion(update, context):
     }
 
     ticket = await asyncio.to_thread(tickets_service.crear_ticket, data)
+    
+    ticket_id = ticket.id
 
     asyncio.create_task(
-        asyncio.to_thread(tickets_service.enviar_correo, ticket.id)
+        asyncio.to_thread(tickets_service.enviar_correo, ticket_id)
     )
 
     await tickets_service.notificar_ti(context, ticket)
