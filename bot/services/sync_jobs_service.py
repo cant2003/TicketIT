@@ -1,10 +1,8 @@
-from backend.db import SessionLocal, SyncJob
+from backend.db import SyncJob, get_db_tx
 
 
 def crear_job_sync(ticket_id: int, accion: str = "insertar"):
-    db = SessionLocal()
-    try:
-        # 🔍 buscar si ya existe un job activo para este ticket
+    with get_db_tx() as db:
         job_existente = (
             db.query(SyncJob)
             .filter(
@@ -21,7 +19,6 @@ def crear_job_sync(ticket_id: int, accion: str = "insertar"):
             )
             return job_existente
 
-        # ✅ si no existe, crear nuevo
         job = SyncJob(
             ticket_id=ticket_id,
             accion=accion,
@@ -31,20 +28,15 @@ def crear_job_sync(ticket_id: int, accion: str = "insertar"):
         )
 
         db.add(job)
-        db.commit()
+        db.flush()
         db.refresh(job)
 
         print(f"Nuevo job creado (id={job.id}) para ticket {ticket_id}")
 
         return job
 
-    finally:
-        db.close()
-
-
 def reactivar_job(job_id: int):
-    db = SessionLocal()
-    try:
+    with get_db_tx() as db:
         job = db.query(SyncJob).filter(SyncJob.id == job_id).first()
 
         if not job:
@@ -54,12 +46,9 @@ def reactivar_job(job_id: int):
         job.reintentos = 0
         job.mensaje_error = None
 
-        db.commit()
+        db.flush()
         db.refresh(job)
 
         print(f"Job {job.id} reactivado")
 
         return job
-
-    finally:
-        db.close()
