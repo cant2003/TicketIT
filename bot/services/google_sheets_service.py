@@ -1,3 +1,4 @@
+from datetime import datetime
 from io import BytesIO
 
 from google.oauth2.service_account import Credentials
@@ -8,7 +9,8 @@ from bot.config import (
     GOOGLE_SPREADSHEET_ID,
     GOOGLE_SHEET_NAME,
 )
-from bot.services import reportes_service as rs
+from bot.services.reportes_service import construir_dataframe, ordenar_dataframe
+from bot.services.ticket_query import tickets_todos
 from bot.services.row_map_service import obtener_fila_ticket, guardar_fila_ticket
 
 SCOPES = [
@@ -153,7 +155,7 @@ def inicializar_sheet_si_esta_vacia():
 
     payload = [
         ["Reporte de Tickets"],
-        [f"Última sincronización: {rs.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"],
+        [f"Última sincronización: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"],
         _headers(),
     ]
 
@@ -174,7 +176,7 @@ def actualizar_timestamp_sheet():
         valueInputOption="RAW",
         body={
             "values": [[
-                f"Última sincronización: {rs.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
+                f"Última sincronización: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"
             ]]
         },
     ).execute()
@@ -244,9 +246,9 @@ def sync_tickets_to_sheet():
     Déjala solo para mantenimiento/manual.
     """
     sheets = _get_sheets_service()
-    tickets = rs.tickets_todos()
-    df = rs.construir_dataframe(tickets)
-    df = rs.ordenar_dataframe(df)
+    tickets = tickets_todos()
+    df = construir_dataframe(tickets)
+    df = ordenar_dataframe(df)
 
     headers = list(df.columns)
     rows = []
@@ -255,7 +257,7 @@ def sync_tickets_to_sheet():
 
     values = [
         ["Reporte de Tickets"],
-        [f"Última sincronización: {rs.datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"],
+        [f"Última sincronización: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}"],
         headers,
         *rows,
     ]
