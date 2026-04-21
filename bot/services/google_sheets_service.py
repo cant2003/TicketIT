@@ -6,12 +6,12 @@ from googleapiclient.discovery import build
 
 from bot.config import (
     GOOGLE_SERVICE_ACCOUNT_FILE,
-    GOOGLE_SPREADSHEET_ID,
     GOOGLE_SHEET_NAME,
+    GOOGLE_SPREADSHEET_ID,
 )
 from bot.services.reportes_service import construir_dataframe, ordenar_dataframe
+from bot.services.row_map_service import guardar_fila_ticket, obtener_fila_ticket
 from bot.services.ticket_query import tickets_todos
-from bot.services.row_map_service import obtener_fila_ticket, guardar_fila_ticket
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -111,13 +111,15 @@ def _ticket_to_row(ticket):
         _normalizar_valor(ticket.estado),
         _normalizar_valor(
             ticket.fecha_creacion.strftime("%d-%m-%Y %H:%M:%S")
-            if ticket.fecha_creacion else ""
+            if ticket.fecha_creacion
+            else ""
         ),
         _normalizar_valor(ticket.asignado_a or "Sin asignar"),
         _normalizar_valor(ticket.observacion or "Sin observaciones"),
         _normalizar_valor(
             ticket.fecha_actualizacion.strftime("%d-%m-%Y %H:%M:%S")
-            if ticket.fecha_actualizacion else ""
+            if ticket.fecha_actualizacion
+            else ""
         ),
     ]
 
@@ -134,6 +136,25 @@ def _headers():
         "Observacion TI",
         "Fecha Actualiz.",
     ]
+
+
+def _extraer_numero_fila(updated_range: str):
+    if "!" not in updated_range:
+        return None
+
+    rango_sin_hoja = updated_range.split("!")[1]
+    fila_inicio = rango_sin_hoja.split(":")[0]
+    numero_fila = "".join(filter(str.isdigit, fila_inicio))
+
+    return int(numero_fila) if numero_fila else None
+
+
+def _guardar_fila_desde_respuesta(ticket_id: int, respuesta):
+    updated_range = respuesta.get("updates", {}).get("updatedRange", "")
+    numero_fila = _extraer_numero_fila(updated_range)
+
+    if numero_fila:
+        guardar_fila_ticket(ticket_id, numero_fila)
 
 
 def inicializar_sheet_si_esta_vacia():
@@ -182,6 +203,16 @@ def actualizar_timestamp_sheet():
     ).execute()
 
 
+def _append_ticket_row(sheets, fila):
+    return sheets.spreadsheets().values().append(
+        spreadsheetId=GOOGLE_SPREADSHEET_ID,
+        range=_sheet_range("A4:I"),
+        valueInputOption="RAW",
+        insertDataOption="INSERT_ROWS",
+        body={"values": [fila]},
+    ).execute()
+
+
 def upsert_ticket_en_sheet(ticket):
     """
     Si el ticket ya tiene fila registrada localmente, actualiza directo.
@@ -191,7 +222,6 @@ def upsert_ticket_en_sheet(ticket):
 
     sheets = _get_sheets_service()
     fila = _ticket_to_row(ticket)
-
     fila_existente = obtener_fila_ticket(ticket.id)
 
     if fila_existente:
@@ -207,35 +237,11 @@ def upsert_ticket_en_sheet(ticket):
                 f"Error actualizando fila existente en Sheets para ticket {ticket.id}: {e}"
             )
 
-            respuesta = sheets.spreadsheets().values().append(
-                spreadsheetId=GOOGLE_SPREADSHEET_ID,
-                range=_sheet_range("A4:I"),
-                valueInputOption="RAW",
-                insertDataOption="INSERT_ROWS",
-                body={"values": [fila]},
-            ).execute()
-
-            updated_range = respuesta.get("updates", {}).get("updatedRange", "")
-            if "!" in updated_range:
-                rango_sin_hoja = updated_range.split("!")[1]
-                fila_inicio = rango_sin_hoja.split(":")[0]
-                numero_fila = int("".join(filter(str.isdigit, fila_inicio)))
-                guardar_fila_ticket(ticket.id, numero_fila)
+            respuesta = _append_ticket_row(sheets, fila)
+            _guardar_fila_desde_respuesta(ticket.id, respuesta)
     else:
-        respuesta = sheets.spreadsheets().values().append(
-            spreadsheetId=GOOGLE_SPREADSHEET_ID,
-            range=_sheet_range("A4:I"),
-            valueInputOption="RAW",
-            insertDataOption="INSERT_ROWS",
-            body={"values": [fila]},
-        ).execute()
-
-        updated_range = respuesta.get("updates", {}).get("updatedRange", "")
-        if "!" in updated_range:
-            rango_sin_hoja = updated_range.split("!")[1]
-            fila_inicio = rango_sin_hoja.split(":")[0]
-            numero_fila = int("".join(filter(str.isdigit, fila_inicio)))
-            guardar_fila_ticket(ticket.id, numero_fila)
+        respuesta = _append_ticket_row(sheets, fila)
+        _guardar_fila_desde_respuesta(ticket.id, respuesta)
 
     actualizar_timestamp_sheet()
 
@@ -252,6 +258,7 @@ def sync_tickets_to_sheet():
 
     headers = list(df.columns)
     rows = []
+
     for _, row in df.iterrows():
         rows.append([_normalizar_valor(v) for v in row.tolist()])
 
