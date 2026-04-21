@@ -1,5 +1,5 @@
 from telegram.ext import (
-    ApplicationBuilder,
+    Application,
     CallbackQueryHandler,
     CommandHandler,
     ConversationHandler,
@@ -32,67 +32,70 @@ from bot.handlers.user_handlers import (
     ver_estado,
 )
 
-app = ApplicationBuilder().token(TOKEN).build()
 
-conv_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(botones)],
-    states={
-        AREA: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                recibir_area,
-            )
-        ],
-        DESCRIPCION: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                recibir_descripcion,
-            )
-        ],
-        ESTADO_ID: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                ver_estado,
-            )
-        ],
-        OBSERVACION: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                recibir_observacion,
-            )
-        ],
-        ESPERANDO_ASIGNADO: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                reporte_asignado,
-            )
-        ],
-        ESPERANDO_USUARIO: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                reporte_usuario,
-            )
-        ],
-        RANGO_INICIO: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
-                recibir_inicio,
-            )
-        ],
-        RANGO_FIN: [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar"),
-                recibir_fin,
-            )
-        ],
-    },
-    fallbacks=[
-        MessageHandler(filters.Regex("(?i)^cancelar$"), cancelar_global),
-        CommandHandler("cancelar", cancelar_global),
-    ]
-)
+def build_application() -> Application:
+    application = Application.builder().token(TOKEN).updater(None).build()
 
-app.add_handler(conv_handler)
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
-app.run_polling()
+    conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(botones)],
+        states={
+            AREA: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    recibir_area,
+                )
+            ],
+            DESCRIPCION: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    recibir_descripcion,
+                )
+            ],
+            ESTADO_ID: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    ver_estado,
+                )
+            ],
+            OBSERVACION: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    recibir_observacion,
+                )
+            ],
+            ESPERANDO_ASIGNADO: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    reporte_asignado,
+                )
+            ],
+            ESPERANDO_USUARIO: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    reporte_usuario,
+                )
+            ],
+            RANGO_INICIO: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    recibir_inicio,
+                )
+            ],
+            RANGO_FIN: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$"),
+                    recibir_fin,
+                )
+            ],
+        },
+        fallbacks=[
+            MessageHandler(filters.Regex("(?i)^cancelar$"), cancelar_global),
+            CommandHandler("cancelar", cancelar_global),
+        ],
+    )
+
+    application.add_handler(conv_handler)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
+
+    return application

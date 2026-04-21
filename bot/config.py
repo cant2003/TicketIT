@@ -13,6 +13,7 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 USUARIOS_TI = [
     os.getenv("CRISTIAN_ID"),
+    # os.getenv("USUARIO_2"),
 ]
 
 EMAIL_PASS = os.getenv("EMAIL_PASS")
