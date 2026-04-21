@@ -1,171 +1,160 @@
-from backend.db import SessionLocal, Ticket
-from datetime import datetime
 import smtplib
+from datetime import datetime
 from email.message import EmailMessage
-from bot.config import EMAIL_PASS,REMITENTE,DESTINATARIO,USUARIOS_TI
+
+from backend.db import Ticket, get_db, get_db_tx
+from bot.config import DESTINATARIO, EMAIL_PASS, REMITENTE, USUARIOS_TI
+from bot.services.sync_jobs_service import crear_job_sync
 from bot.ui.keyboards import boton_volver_menu
 
-from bot.services.sync_jobs_service import crear_job_sync
 
 def _ahora():
     return datetime.utcnow()
-#!---------------------------------------------------------
 
-#! Obtencion de tickets abiertos
+
 def obtener_tickets_abiertos():
-    db = SessionLocal()
-    tickets = db.query(Ticket).filter(Ticket.estado == "Abierto").all()
-    db.close()
-    return tickets
-#!---------------------------------------------------------
+    with get_db() as db:
+        return db.query(Ticket).filter(Ticket.estado == "Abierto").all()
 
-#!Tickets en proceso
+
 def obtener_tickets_en_proceso(usuario):
-    db = SessionLocal()
-    tickets = db.query(Ticket).filter(
-        Ticket.estado == "En Proceso",
-        Ticket.asignado_a == usuario
-    ).all()
-    db.close()
-    return tickets
-#!---------------------------------------------------------
+    with get_db() as db:
+        return (
+            db.query(Ticket)
+            .filter(
+                Ticket.estado == "En Proceso",
+                Ticket.asignado_a == usuario,
+            )
+            .all()
+        )
 
-#! Ticket particular 
+
 def obtener_ticket(ticket_id):
-    db = SessionLocal()
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-    db.close()
-    return ticket
-#!---------------------------------------------------------
+    with get_db() as db:
+        return db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-#! Tomar Ticket
+
 def tomar_ticket(ticket_id, usuario):
-    db = SessionLocal()
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    with get_db_tx() as db:
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-    if not ticket:
-        db.close()
-        raise ValueError("Ticket no encontrado")
+        if not ticket:
+            raise ValueError("Ticket no encontrado")
 
-    if ticket.estado == "En Proceso":
-        db.close()
-        raise ValueError("Ya está en proceso")
+        if ticket.estado == "En Proceso":
+            raise ValueError("Ya está en proceso")
 
-    ticket.estado = "En Proceso"
-    ticket.asignado_a = usuario
+        ticket.estado = "En Proceso"
+        ticket.asignado_a = usuario
+        ticket.fecha_actualizacion = _ahora()
 
-    ticket.fecha_actualizacion = _ahora()
+        db.flush()
+        db.refresh(ticket)
 
-    db.commit()
-    db.refresh(ticket)
-    db.close()
+        ticket_id_sync = ticket.id
 
     try:
-        crear_job_sync(ticket.id)
+        crear_job_sync(ticket_id_sync)
     except Exception as e:
         print("Error sincronizando Google Sheets al tomar ticket:", e)
-    
-    return ticket
-#!---------------------------------------------------------
 
-#!Cerrar Ticket
+    return ticket
+
+
 def cerrar_ticket(ticket_id):
-    db = SessionLocal()
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    with get_db_tx() as db:
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-    if not ticket:
-        db.close()
-        raise ValueError("Ticket no encontrado")
+        if not ticket:
+            raise ValueError("Ticket no encontrado")
 
-    ticket.estado = "Cerrado"
+        ticket.estado = "Cerrado"
+        ticket.fecha_actualizacion = _ahora()
 
-    ticket.fecha_actualizacion = _ahora()
-    
-    
+        db.flush()
+        db.refresh(ticket)
 
-    db.commit()
-    db.refresh(ticket)
-    db.close()
-    
+        ticket_id_sync = ticket.id
+
     try:
-        crear_job_sync(ticket.id)
+        crear_job_sync(ticket_id_sync)
     except Exception as e:
-        print("Error actualizando Google Sheets al crear ticket:", e)
-
+        print("Error actualizando Google Sheets al cerrar ticket:", e)
 
     return ticket
-#!---------------------------------------------------------
 
-#! Crear ticket
+
 def crear_ticket(data):
-    db = SessionLocal()
+    with get_db_tx() as db:
+        ticket = Ticket(
+            usuario=data["usuario"],
+            area=data["area"],
+            descripcion=data["descripcion"],
+            estado="Abierto",
+            chat_id=str(data["chat_id"]),
+        )
 
-    ticket = Ticket(
-        usuario=data["usuario"],
-        area=data["area"],
-        descripcion=data["descripcion"],
-        estado="Abierto",
-        chat_id=str(data["chat_id"])
-    )
+        db.add(ticket)
+        db.flush()
+        db.refresh(ticket)
 
-    db.add(ticket)
-    db.commit()
-    db.refresh(ticket)
-    db.close()
-    
+        ticket_id_sync = ticket.id
+
     try:
-        crear_job_sync(ticket.id)
+        crear_job_sync(ticket_id_sync)
     except Exception as e:
         print("Error sincronizando Google Sheets al crear ticket:", e)
 
     return ticket
-# !___________________________________________________
+
+
 def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
-    db = SessionLocal()
+    with get_db_tx() as db:
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not ticket:
+            raise ValueError("Ticket no encontrado")
 
-    if not ticket:
-        db.close()
-        raise ValueError("Ticket no encontrado")
-    
-    if ticket.estado == "Cerrado":
-        db.close()
-        raise ValueError("El ticket ya se encuentra cerrado")
+        if ticket.estado == "Cerrado":
+            raise ValueError("El ticket ya se encuentra cerrado")
 
-    ticket.estado = "Cerrado"
-    ticket.observacion = observacion
+        ticket.estado = "Cerrado"
+        ticket.observacion = observacion
 
-    if not ticket.asignado_a:
-        ticket.asignado_a = usuario
+        if not ticket.asignado_a:
+            ticket.asignado_a = usuario
 
-    ticket.fecha_actualizacion = datetime.utcnow()
+        ticket.fecha_actualizacion = _ahora()
 
-    db.commit()
-    db.refresh(ticket)
-    db.close()
-    
+        db.flush()
+        db.refresh(ticket)
+
+        ticket_id_sync = ticket.id
+
     try:
-        crear_job_sync(ticket.id)
+        crear_job_sync(ticket_id_sync)
     except Exception as e:
-        print("Error sincronizando Google Sheets al crear ticket:", e)
-    
+        print("Error sincronizando Google Sheets al cerrar ticket:", e)
+
     return ticket
-#! ------------------------------------
+
+
 def enviar_correo(ticket_id):
+    with get_db() as db:
+        ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
-    db = SessionLocal()
-    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+        if not ticket:
+            print(f"No se encontró ticket {ticket_id} para enviar correo")
+            return
 
-    msg = EmailMessage()
+        fecha_str = ticket.fecha_creacion.strftime("%d-%m-%Y %H:%M:%S")
 
-    fecha_str = ticket.fecha_creacion.strftime("%d-%m-%Y %H:%M:%S")
+        msg = EmailMessage()
+        msg["Subject"] = f"🆕 Ticket Abierto #{ticket.id}, {fecha_str}"
+        msg["From"] = f"TI-BOT SOPORTE (No-Reply) <{REMITENTE}>"
+        msg["To"] = DESTINATARIO
 
-    msg['Subject'] = f"🆕 Ticket Abierto #{ticket.id}, {fecha_str}"
-    msg['From'] = f'TI-BOT SOPORTE (No-Reply) <{REMITENTE}>'
-    msg['To'] = DESTINATARIO
-
-    contenido = f"""Se ha abierto un nuevo ticket.
+        contenido = f"""Se ha abierto un nuevo ticket.
 
 ID: {ticket.id}
 Usuario: {ticket.usuario if ticket.usuario else 'No especificado'}
@@ -173,16 +162,16 @@ Descripción: {ticket.descripcion if ticket.descripcion else 'Sin descripción'}
 Fecha: {fecha_str}
 """
 
-    msg.set_content(contenido)
-    db.close()
+        msg.set_content(contenido)
+
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com',465) as smtp: 
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
             smtp.login(REMITENTE, EMAIL_PASS)
             smtp.send_message(msg)
     except Exception as e:
         print("Error al enviar correo: ", e)
 
-#!__________________________________________________
+
 async def notificar_ti(context, ticket):
     mensaje = (
         f"🆕 Nuevo ticket\n"
@@ -194,6 +183,10 @@ async def notificar_ti(context, ticket):
 
     for chat_id in USUARIOS_TI:
         try:
-            await context.bot.send_message(chat_id=chat_id, text=mensaje, reply_markup=boton_volver_menu())
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=mensaje,
+                reply_markup=boton_volver_menu(),
+            )
         except Exception as e:
             print(f"Error enviando a {chat_id}:", e)
