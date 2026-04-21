@@ -34,8 +34,10 @@ from bot.handlers.user_handlers import (
 
 TEXT_INPUT = filters.TEXT & ~filters.COMMAND & ~filters.Regex("(?i)^cancelar$")
 
+
 def _text_handler(callback):
     return MessageHandler(TEXT_INPUT, callback)
+
 
 def _build_conversation_handler():
     return ConversationHandler(
@@ -55,6 +57,7 @@ def _build_conversation_handler():
             CommandHandler("cancelar", cancelar_global),
         ],
     )
+
 
 def build_application() -> Application:
     application = Application.builder().token(TOKEN).updater(None).build()
