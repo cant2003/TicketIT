@@ -129,7 +129,9 @@ def tickets_semana_actual():
     tickets = (
         db.query(Ticket)
         .filter(
-            Ticket.fecha_creacion >= inicio_semana, Ticket.fecha_creacion < fin_semana
+            Ticket.fecha_creacion >= inicio_semana,
+            Ticket.fecha_creacion < fin_semana,
+            Ticket.estado == "Cerrado",
         )
         .order_by(Ticket.id.desc())
         .limit(10000)
@@ -158,7 +160,11 @@ def tickets_por_rango(fecha_inicio_str, fecha_fin_str):
 
     tickets = (
         db.query(Ticket)
-        .filter(Ticket.fecha_creacion >= inicio, Ticket.fecha_creacion < fin)
+        .filter(
+            Ticket.fecha_creacion >= inicio,
+            Ticket.fecha_creacion < fin,
+            Ticket.estado == "Cerrado",
+        )
         .order_by(Ticket.id.desc())
         .limit(10000)
         .all()
