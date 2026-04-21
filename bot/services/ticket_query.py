@@ -4,7 +4,7 @@ from backend.db import SessionLocal, Ticket, get_db
 
 #! FILTRAR TODO
 def tickets_todos():
-   with get_db() as db:
+    with get_db() as db:
         return (
             db.query(Ticket)
             .order_by(Ticket.id.desc())
@@ -40,79 +40,58 @@ def tickets_usuario(usuario):
         )
 #!-------------------------------------------------------
 
-
 def tickets_ultimo_anyo():
-    db = SessionLocal()
-
     ahora = datetime.utcnow()
     hace_12_meses = ahora - timedelta(days=365)
 
-    tickets = (
-        db.query(Ticket)
-        .filter(
-            Ticket.fecha_creacion >= hace_12_meses,
-            Ticket.fecha_creacion <= ahora,
-            Ticket.estado == "Cerrado",
+    with get_db() as db:
+        return (
+            db.query(Ticket)
+            .filter(
+                Ticket.fecha_creacion >= hace_12_meses,
+                Ticket.fecha_creacion <= ahora,
+                Ticket.estado == "Cerrado",
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
         )
-        .order_by(Ticket.id.desc())
-        .limit(10000)
-        .all()
-    )
-
-    db.close()
-    return tickets
-
-
 #!-------------------------------------------------------
-
-
 def tickets_ultimo_mes():
-    db = SessionLocal()
-
     ahora = datetime.utcnow()
     hace_30_dias = ahora - timedelta(days=30)
 
-    tickets = (
-        db.query(Ticket)
-        .filter(
-            Ticket.fecha_creacion >= hace_30_dias,
-            Ticket.fecha_creacion <= ahora,
-            Ticket.estado == "Cerrado",
+    with get_db() as db:
+        return (
+            db.query(Ticket)
+            .filter(
+                Ticket.fecha_creacion >= hace_30_dias,
+                Ticket.fecha_creacion <= ahora,
+                Ticket.estado == "Cerrado",
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
         )
-        .order_by(Ticket.id.desc())
-        .limit(10000)
-        .all()
-    )
-
-    db.close()
-    return tickets
-
-
 #!---------------------------------------------------------
 def tickets_hoy():
-    db = SessionLocal()
-
     ahora = datetime.utcnow()
 
     inicio_dia = datetime(ahora.year, ahora.month, ahora.day)
     fin_dia = inicio_dia + timedelta(days=1)
 
-    tickets = (
-        db.query(Ticket)
-        .filter(
-            Ticket.fecha_creacion >= inicio_dia,
-            Ticket.fecha_creacion < fin_dia,
-            Ticket.estado == "Cerrado",
+    with get_db() as db:
+        return (
+            db.query(Ticket)
+            .filter(
+                Ticket.fecha_creacion >= inicio_dia,
+                Ticket.fecha_creacion < fin_dia,
+                Ticket.estado == "Cerrado",
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
         )
-        .order_by(Ticket.id.desc())
-        .limit(10000)
-        .all()
-    )
-
-    db.close()
-    return tickets
-
-
 #!---------------------------------------------------------
 def tickets_semana_actual():
     db = SessionLocal()
