@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Integer, String, create_engine
@@ -55,3 +56,25 @@ class SheetRowMap(Base):
 Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@contextmanager
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@contextmanager
+def get_db_tx():
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

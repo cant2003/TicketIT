@@ -1,19 +1,23 @@
-from backend.db import SessionLocal, SheetRowMap
+from backend.db import SheetRowMap, get_db, get_db_tx
 
 
 def obtener_fila_ticket(ticket_id: int):
-    db = SessionLocal()
-    try:
-        registro = db.query(SheetRowMap).filter(SheetRowMap.ticket_id == ticket_id).first()
+    with get_db() as db:
+        registro = (
+            db.query(SheetRowMap)
+            .filter(SheetRowMap.ticket_id == ticket_id)
+            .first()
+        )
         return registro.row_number if registro else None
-    finally:
-        db.close()
 
 
 def guardar_fila_ticket(ticket_id: int, row_number: int):
-    db = SessionLocal()
-    try:
-        registro = db.query(SheetRowMap).filter(SheetRowMap.ticket_id == ticket_id).first()
+    with get_db_tx() as db:
+        registro = (
+            db.query(SheetRowMap)
+            .filter(SheetRowMap.ticket_id == ticket_id)
+            .first()
+        )
 
         if registro:
             registro.row_number = row_number
@@ -24,8 +28,6 @@ def guardar_fila_ticket(ticket_id: int, row_number: int):
             )
             db.add(registro)
 
-        db.commit()
+        db.flush()
         db.refresh(registro)
         return registro
-    finally:
-        db.close()
