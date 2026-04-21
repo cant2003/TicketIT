@@ -3,10 +3,8 @@ from datetime import datetime
 from email.message import EmailMessage
 from io import BytesIO
 
-
 import pandas as pd
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-
 
 from bot.config import DESTINATARIO, EMAIL_PASS, REMITENTE
 
@@ -28,7 +26,6 @@ def generar_excel(tickets):
         ws["A2"] = f"Fecha de Reporte: {datetime.now().strftime('%d-%m-%Y (%H:%M:%S)')}"
 
         ws["A1"].font = Font(size=14, bold=True)
-        ws["A1"].font = Font(size=10)
 
         aplicar_estilos_generales(ws)
         aplicar_estilo_headers(ws)
@@ -97,7 +94,7 @@ def aplicar_estilo_headers(ws):
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    ws.row_dimensions[3].heigth = 20
+    ws.row_dimensions[3].height = 20
 
 
 #!---------------------------------------------------------
@@ -155,7 +152,7 @@ def resaltar_nulos(ws):
             cell.fill = null_fill
 
     for cell in ws["I"]:
-        if cell.value == "Sin Comentarios":
+        if cell.value == "Sin observaciones":
             cell.fill = null_fill
 
 
@@ -224,4 +221,3 @@ def enviar_report_correo(archivo_bytes, nombre_archivo):
 
 
 #!--------------------------------------------------------
-
