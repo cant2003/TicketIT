@@ -1,3 +1,5 @@
+import asyncio
+
 from telegram.ext import ConversationHandler
 
 from bot.constants.states import OBSERVACION
@@ -11,67 +13,15 @@ from bot.ui.keyboards import (
 )
 
 
-# ! ver tickets
-async def ver_tickets(update, context):
-    query = update.callback_query
-    await query.answer()
-
-    tickets = tickets_service.obtener_tickets_abiertos()
-
-    if not tickets:
-        await query.edit_message_text("📭 No hay tickets", reply_markup=boton_volver())
-        return
-
-    await query.edit_message_text(
-        "📋 Tickets disponibles:", reply_markup=teclado_tickets(tickets)
-    )
-
-
-#!---------------------------------------------------------
-
-
-#! Listar en proceso
-async def ver_en_proceso(update, context):
-    query = update.callback_query
-    await query.answer()
-
-    usuario = query.from_user.first_name
-    tickets = tickets_service.obtener_tickets_en_proceso(usuario)
-
-    if not tickets:
-        await query.edit_message_text(
-            "📭 No tienes tickets en proceso", reply_markup=boton_volver()
-        )
-        return
-
-    await query.edit_message_text(
-        "🔧 Tus tickets:", reply_markup=teclado_tickets(tickets)
-    )
-
-
-#!---------------------------------------------------------
-
-
-# ! Ver detalle ticket
-async def ver_ticket_detalle(update, context):
-    query = update.callback_query
-    await query.answer()
-
+def _extraer_ticket_id(callback_data: str):
     try:
-        ticket_id = int(query.data.split("_")[1])
-    except:  # noqa: E722
-        await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
-        return
+        return int(callback_data.split("_")[1])
+    except (IndexError, ValueError):
+        return None
 
-    ticket = tickets_service.obtener_ticket(ticket_id)
 
-    if not ticket:
-        await query.edit_message_text(
-            "❌ Ticket no encontrado", reply_markup=boton_volver()
-        )
-        return
-
-    texto = (
+def _formatear_detalle_ticket(ticket):
+    return (
         f"🎫 Ticket #{ticket.id}\n"
         f"Usuario: {ticket.usuario}\n"
         f"Área: {ticket.area}\n"
@@ -79,78 +29,141 @@ async def ver_ticket_detalle(update, context):
         f"Estado: {ticket.estado}\n"
         f"Asignado: {ticket.asignado_a or 'Nadie'}"
     )
+
+
+async def ver_tickets(update, context):
+    query = update.callback_query
+    await query.answer()
+
+    tickets = await asyncio.to_thread(tickets_service.obtener_tickets_abiertos)
+
+    if not tickets:
+        await query.edit_message_text("📭 No hay tickets", reply_markup=boton_volver())
+        return
+
+    await query.edit_message_text(
+        "📋 Tickets disponibles:",
+        reply_markup=teclado_tickets(tickets),
+    )
+
+
+async def ver_en_proceso(update, context):
+    query = update.callback_query
+    await query.answer()
+
+    usuario = query.from_user.first_name
+    tickets = await asyncio.to_thread(
+        tickets_service.obtener_tickets_en_proceso,
+        usuario,
+    )
+
+    if not tickets:
+        await query.edit_message_text(
+            "📭 No tienes tickets en proceso",
+            reply_markup=boton_volver(),
+        )
+        return
+
+    await query.edit_message_text(
+        "🔧 Tus tickets:",
+        reply_markup=teclado_tickets(tickets),
+    )
+
+
+async def ver_ticket_detalle(update, context):
+    query = update.callback_query
+    await query.answer()
+
+    ticket_id = _extraer_ticket_id(query.data)
+
+    if ticket_id is None:
+        await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
+        return
+
+    ticket = await asyncio.to_thread(tickets_service.obtener_ticket, ticket_id)
+
+    if not ticket:
+        await query.edit_message_text(
+            "❌ Ticket no encontrado",
+            reply_markup=boton_volver(),
+        )
+        return
+
+    texto = _formatear_detalle_ticket(ticket)
+
     if ticket.estado == "En Proceso":
-        await query.edit_message_text(
-            texto, reply_markup=teclado_detalle_proceso(ticket.id)
-        )
+        reply_markup = teclado_detalle_proceso(ticket.id)
     else:
-        await query.edit_message_text(
-            texto, reply_markup=teclado_ticket_detalle(ticket.id)
-        )
+        reply_markup = teclado_ticket_detalle(ticket.id)
+
+    await query.edit_message_text(texto, reply_markup=reply_markup)
 
 
-#!---------------------------------------------------------
-
-
-#! tomar tickets
 async def tomar_ticket_handler(update, context):
     query = update.callback_query
     await query.answer()
 
-    try:
-        ticket_id = int(query.data.split("_")[1])
-    except Exception:
+    ticket_id = _extraer_ticket_id(query.data)
+
+    if ticket_id is None:
         await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
         return
 
     usuario = query.from_user.first_name
 
     try:
-        ticket = tickets_service.tomar_ticket(ticket_id, usuario)
+        ticket = await asyncio.to_thread(
+            tickets_service.tomar_ticket,
+            ticket_id,
+            usuario,
+        )
 
         await query.edit_message_text(
-            f"🔧 Ticket #{ticket.id} tomado", reply_markup=boton_volver_menu()
+            f"🔧 Ticket #{ticket.id} tomado",
+            reply_markup=boton_volver_menu(),
         )
+
         chat_id = int(ticket.chat_id) if ticket.chat_id else None
-        await context.bot.send_message(
-            chat_id, "👨‍💻 Tu ticket está en proceso", reply_markup=boton_volver()
-        )
+        if chat_id:
+            await context.bot.send_message(
+                chat_id,
+                "👨‍💻 Tu ticket está en proceso",
+                reply_markup=boton_volver(),
+            )
 
     except ValueError as e:
         await query.edit_message_text(f"⚠️ {str(e)}", reply_markup=boton_volver())
 
-    except Exception:
+    except Exception as e:
+        print(f"Error inesperado al tomar ticket: {e}")
         await query.edit_message_text(
-            "❌ Error inesperado", reply_markup=boton_volver()
+            "❌ Error inesperado",
+            reply_markup=boton_volver(),
         )
 
 
-#!---------------------------------------------------------
-
-
-# !  Cerrar ticket
 async def cerrar_ticket_handler(update, context):
     query = update.callback_query
     await query.answer()
 
-    try:
-        ticket_id = int(query.data.split("_")[1])
-    except Exception:
+    ticket_id = _extraer_ticket_id(query.data)
+
+    if ticket_id is None:
         await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
         return
 
     context.user_data["cerrar_ticket_id"] = ticket_id
 
     await query.edit_message_text(
-        "✍️ Escribe una observación para cerrar el ticket:\n\n(Escribe 'cancelar' para salir)"
+        "✍️ Escribe una observación para cerrar el ticket:\n\n"
+        "(Escribe 'cancelar' para salir)"
     )
 
     return OBSERVACION
 
 
-#! -----------------------------------------------
 async def recibir_observacion(update, context):
-    observacion = update.message.text
+    observacion = update.message.text.strip()
     ticket_id = context.user_data.get("cerrar_ticket_id")
 
     if observacion.lower() == "cancelar":
@@ -158,32 +171,42 @@ async def recibir_observacion(update, context):
 
     if not ticket_id:
         await update.message.reply_text(
-            "❌ Error, vuelve a empezar", reply_markup=boton_volver()
+            "❌ Error, vuelve a empezar",
+            reply_markup=boton_volver(),
         )
         return ConversationHandler.END
 
     usuario = update.message.from_user.first_name
 
     try:
-        ticket = tickets_service.cerrar_ticket_con_observacion(
-            ticket_id, observacion, usuario
+        ticket = await asyncio.to_thread(
+            tickets_service.cerrar_ticket_con_observacion,
+            ticket_id,
+            observacion,
+            usuario,
         )
 
         await update.message.reply_text(
             f"✅ Ticket #{ticket.id} cerrado\n📝 Observación guardada",
             reply_markup=boton_volver_menu(),
         )
+
         chat_id = int(ticket.chat_id) if ticket.chat_id else None
-        await context.bot.send_message(
-            chat_id,
-            f"✅ Tu ticket fue Atendido\n📝 Observación: {observacion}",
-            reply_markup=boton_volver_menu(),
-        )
+        if chat_id:
+            await context.bot.send_message(
+                chat_id,
+                f"✅ Tu ticket fue Atendido\n📝 Observación: {observacion}",
+                reply_markup=boton_volver_menu(),
+            )
 
     except ValueError as e:
         await update.message.reply_text(f"⚠️ {str(e)}")
 
+    except Exception as e:
+        print(f"Error inesperado al cerrar ticket: {e}")
+        await update.message.reply_text(
+            "❌ Error inesperado al cerrar el ticket",
+            reply_markup=boton_volver(),
+        )
+
     return ConversationHandler.END
-
-
-#! -----------------------------------------------
