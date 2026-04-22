@@ -3,8 +3,13 @@ from datetime import datetime
 from email.message import EmailMessage
 
 from backend.db import Ticket, get_db, get_db_tx
-from bot.config import DESTINATARIO, EMAIL_PASS, REMITENTE, USUARIOS_TI
+from bot.config import DESTINATARIO, EMAIL_PASS, REMITENTE
 from bot.services.sync_jobs_service import crear_job_sync
+from bot.services.usuarios_service import (
+    obtener_o_crear_usuario,
+    obtener_o_crear_usuario_ti,
+    obtener_telegram_ids_ti,
+)
 from bot.ui.keyboards import boton_volver_menu
 
 
@@ -34,7 +39,9 @@ def obtener_ticket(ticket_id):
         return db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
 
-def tomar_ticket(ticket_id, usuario):
+def tomar_ticket(ticket_id, usuario, telegram_id):
+    usuario_ti = obtener_o_crear_usuario_ti(usuario, telegram_id)
+
     with get_db_tx() as db:
         ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
@@ -45,7 +52,8 @@ def tomar_ticket(ticket_id, usuario):
             raise ValueError("Ya está en proceso")
 
         ticket.estado = "En Proceso"
-        ticket.asignado_a = usuario
+        ticket.asignado_a = usuario  # compatibilidad temporal
+        ticket.asignado_ti_id = usuario_ti.id
         ticket.fecha_actualizacion = _ahora()
 
         db.flush()
@@ -60,14 +68,21 @@ def tomar_ticket(ticket_id, usuario):
 
     return ticket
 
+
 def crear_ticket(data):
+    usuario = obtener_o_crear_usuario(
+        nombre=data["usuario"],
+        chat_id=data["chat_id"],
+    )
+
     with get_db_tx() as db:
         ticket = Ticket(
-            usuario=data["usuario"],
+            usuario=data["usuario"],  # compatibilidad temporal
+            chat_id=str(data["chat_id"]),  # compatibilidad temporal
+            usuario_id=usuario.id,
             area=data["area"],
             descripcion=data["descripcion"],
             estado="Abierto",
-            chat_id=str(data["chat_id"]),
         )
 
         db.add(ticket)
@@ -84,7 +99,9 @@ def crear_ticket(data):
     return ticket
 
 
-def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
+def cerrar_ticket_con_observacion(ticket_id, observacion, usuario, telegram_id):
+    usuario_ti = obtener_o_crear_usuario_ti(usuario, telegram_id)
+
     with get_db_tx() as db:
         ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
 
@@ -96,10 +113,8 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario):
 
         ticket.estado = "Cerrado"
         ticket.observacion = observacion
-
-        if not ticket.asignado_a:
-            ticket.asignado_a = usuario
-
+        ticket.asignado_a = usuario  # compatibilidad temporal
+        ticket.asignado_ti_id = usuario_ti.id
         ticket.fecha_actualizacion = _ahora()
 
         db.flush()
@@ -157,18 +172,15 @@ async def notificar_ti(context, ticket):
         f"Descripción: {ticket.descripcion}"
     )
 
-    for chat_id in USUARIOS_TI:
+    for telegram_id in obtener_telegram_ids_ti():
         try:
             await context.bot.send_message(
-                chat_id=chat_id,
+                chat_id=telegram_id,
                 text=mensaje,
                 reply_markup=boton_volver_menu(),
             )
         except Exception as e:
-            print(f"Error enviando a {chat_id}:", e)
-
-
-
+            print(f"Error enviando a {telegram_id}:", e)
 
 #!------------------------------------------------------------------------------
 # def cerrar_ticket(ticket_id):

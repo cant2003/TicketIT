@@ -1,6 +1,5 @@
-from bot.config import USUARIOS_TI
+from bot.services.usuarios_service import es_ti_por_telegram_id
 
 
-#! Verificacion TI
 def es_ti(chat_id):
-    return str(chat_id) in USUARIOS_TI
+    return es_ti_por_telegram_id(chat_id)

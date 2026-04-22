@@ -3,7 +3,13 @@ import asyncio
 from telegram.ext import ConversationHandler
 
 from bot.constants.states import OBSERVACION
-from bot.services import tickets_service
+from bot.services.tickets_service import (
+    cerrar_ticket_con_observacion,
+    obtener_ticket,
+    obtener_tickets_abiertos,
+    obtener_tickets_en_proceso,
+    tomar_ticket,
+)
 from bot.ui.keyboards import (
     boton_volver,
     boton_volver_menu,
@@ -35,7 +41,7 @@ async def ver_tickets(update, context):
     query = update.callback_query
     await query.answer()
 
-    tickets = await asyncio.to_thread(tickets_service.obtener_tickets_abiertos)
+    tickets = await asyncio.to_thread(obtener_tickets_abiertos)
 
     if not tickets:
         await query.edit_message_text("📭 No hay tickets", reply_markup=boton_volver())
@@ -53,7 +59,7 @@ async def ver_en_proceso(update, context):
 
     usuario = query.from_user.first_name
     tickets = await asyncio.to_thread(
-        tickets_service.obtener_tickets_en_proceso,
+        obtener_tickets_en_proceso,
         usuario,
     )
 
@@ -80,7 +86,7 @@ async def ver_ticket_detalle(update, context):
         await query.edit_message_text("❌ Error en el ID", reply_markup=boton_volver())
         return
 
-    ticket = await asyncio.to_thread(tickets_service.obtener_ticket, ticket_id)
+    ticket = await asyncio.to_thread(obtener_ticket, ticket_id)
 
     if not ticket:
         await query.edit_message_text(
@@ -110,12 +116,14 @@ async def tomar_ticket_handler(update, context):
         return
 
     usuario = query.from_user.first_name
+    telegram_id = query.from_user.id
 
     try:
         ticket = await asyncio.to_thread(
-            tickets_service.tomar_ticket,
+            tomar_ticket,
             ticket_id,
             usuario,
+            telegram_id,
         )
 
         await query.edit_message_text(
@@ -177,13 +185,15 @@ async def recibir_observacion(update, context):
         return ConversationHandler.END
 
     usuario = update.message.from_user.first_name
+    telegram_id = update.message.from_user.id
 
     try:
         ticket = await asyncio.to_thread(
-            tickets_service.cerrar_ticket_con_observacion,
+            cerrar_ticket_con_observacion,
             ticket_id,
             observacion,
             usuario,
+            telegram_id,
         )
 
         await update.message.reply_text(

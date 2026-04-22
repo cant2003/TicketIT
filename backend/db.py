@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 DATABASE_URL = "sqlite:///tickets.db"
 
@@ -18,19 +18,58 @@ def now():
     return datetime.utcnow()
 
 
+class Usuario(Base):
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    chat_id = Column(String, nullable=False, unique=True, index=True)
+    creado = Column(DateTime, default=now)
+    actualizado = Column(DateTime, default=now, onupdate=now)
+
+    tickets = relationship("Ticket", back_populates="usuario_ref")
+
+
+class UsuarioTI(Base):
+    __tablename__ = "usuarios_ti"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    telegram_id = Column(String, nullable=False, unique=True, index=True)
+    creado = Column(DateTime, default=now)
+    actualizado = Column(DateTime, default=now, onupdate=now)
+
+    tickets_asignados = relationship("Ticket", back_populates="asignado_ti_ref")
+
+
 class Ticket(Base):
     __tablename__ = "tickets"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    # Compatibilidad temporal
     usuario = Column(String, nullable=False)
+    chat_id = Column(String, nullable=False)
+    asignado_a = Column(String, nullable=True)
+
+    # Nuevo modelo relacional
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True, index=True)
+    asignado_ti_id = Column(
+        Integer,
+        ForeignKey("usuarios_ti.id"),
+        nullable=True,
+        index=True,
+    )
+
     area = Column(String, nullable=False)
     descripcion = Column(String, nullable=False)
     estado = Column(String, default="Abierto")
     fecha_creacion = Column(DateTime, default=now)
     fecha_actualizacion = Column(DateTime, default=now, onupdate=now)
-    chat_id = Column(String, nullable=False)
-    asignado_a = Column(String, nullable=True)
     observacion = Column(String, nullable=True)
+
+    usuario_ref = relationship("Usuario", back_populates="tickets")
+    asignado_ti_ref = relationship("UsuarioTI", back_populates="tickets_asignados")
 
 
 class SyncJob(Base):
@@ -63,6 +102,7 @@ SessionLocal = sessionmaker(
     expire_on_commit=False,
     bind=engine,
 )
+
 
 @contextmanager
 def get_db():
