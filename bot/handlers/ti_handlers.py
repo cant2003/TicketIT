@@ -58,8 +58,11 @@ async def ver_en_proceso(update, context):
     await query.answer()
 
     usuario = query.from_user.first_name
+    telegram_id = query.from_user.id
+
     tickets = await asyncio.to_thread(
         obtener_tickets_en_proceso,
+        telegram_id,
         usuario,
     )
 

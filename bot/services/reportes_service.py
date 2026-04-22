@@ -54,6 +54,8 @@ def construir_dataframe(tickets):
     data = []
 
     for ticket in tickets:
+        ti_asignado = _obtener_nombre_ti(ticket)
+
         data.append(
             {
                 "ID": ticket.id,
@@ -62,7 +64,7 @@ def construir_dataframe(tickets):
                 "Descripción": ticket.descripcion,
                 "Estado": ticket.estado,
                 "Fecha Creacion": _formatear_fecha(ticket.fecha_creacion),
-                "TI Asignado": ticket.asignado_a or "Sin asignar",
+                "TI Asignado": ti_asignado,
                 "Observacion TI": ticket.observacion or "Sin observaciones",
                 "Fecha Actualiz.": _formatear_fecha(ticket.fecha_actualizacion),
             }
@@ -206,3 +208,13 @@ def enviar_report_correo(archivo_bytes, nombre_archivo):
 
 def _formatear_fecha(fecha):
     return fecha.strftime("%d-%m-%Y %H:%M:%S") if fecha else ""
+
+
+def _obtener_nombre_ti(ticket):
+    if getattr(ticket, "asignado_ti_ref", None) and ticket.asignado_ti_ref.nombre:
+        return ticket.asignado_ti_ref.nombre
+
+    if ticket.asignado_a:
+        return ticket.asignado_a
+
+    return "Sin asignar"

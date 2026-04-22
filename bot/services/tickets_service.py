@@ -22,13 +22,18 @@ def obtener_tickets_abiertos():
         return db.query(Ticket).filter(Ticket.estado == "Abierto").all()
 
 
-def obtener_tickets_en_proceso(usuario):
+def obtener_tickets_en_proceso(telegram_id, nombre=None):
+    usuario_ti = obtener_o_crear_usuario_ti(
+        nombre=nombre or "TI",
+        telegram_id=telegram_id,
+    )
+
     with get_db() as db:
         return (
             db.query(Ticket)
             .filter(
                 Ticket.estado == "En Proceso",
-                Ticket.asignado_a == usuario,
+                Ticket.asignado_ti_id == usuario_ti.id,
             )
             .all()
         )
