@@ -8,22 +8,12 @@ ENV_PATH = BASE_DIR / ".env"
 
 load_dotenv(dotenv_path=ENV_PATH)
 
-
-def _get_env_list(*names):
-    return [
-        value
-        for name in names
-        if (value := os.getenv(name))
-    ]
-
-
 # Telegram
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-USUARIOS_TI = _get_env_list(
-    "CRISTIAN_ID",
-    # "USUARIO_2",
-)
+# Bootstrap TI por defecto
+DEFAULT_TI_NAME = os.getenv("DEFAULT_TI_NAME")
+DEFAULT_TI_TELEGRAM_ID = os.getenv("DEFAULT_TI_TELEGRAM_ID")
 
 # Email
 EMAIL_PASS = os.getenv("EMAIL_PASS")

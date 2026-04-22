@@ -6,9 +6,10 @@ def obtener_o_crear_usuario(nombre: str, chat_id: str):
         usuario = db.query(Usuario).filter(Usuario.chat_id == str(chat_id)).first()
 
         if usuario:
-            usuario.nombre = nombre
-            db.flush()
-            db.refresh(usuario)
+            if usuario.nombre != nombre:
+                usuario.nombre = nombre
+                db.flush()
+                db.refresh(usuario)
             return usuario
 
         usuario = Usuario(
@@ -30,9 +31,10 @@ def obtener_o_crear_usuario_ti(nombre: str, telegram_id: str):
         )
 
         if usuario_ti:
-            usuario_ti.nombre = nombre
-            db.flush()
-            db.refresh(usuario_ti)
+            if usuario_ti.nombre != nombre:
+                usuario_ti.nombre = nombre
+                db.flush()
+                db.refresh(usuario_ti)
             return usuario_ti
 
         usuario_ti = UsuarioTI(

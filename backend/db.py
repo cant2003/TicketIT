@@ -4,6 +4,8 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
+from bot.config import DEFAULT_TI_NAME, DEFAULT_TI_TELEGRAM_ID
+
 DATABASE_URL = "sqlite:///tickets.db"
 
 engine = create_engine(
@@ -94,8 +96,6 @@ class SheetRowMap(Base):
     actualizado = Column(DateTime, default=now, onupdate=now)
 
 
-Base.metadata.create_all(bind=engine)
-
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -124,3 +124,36 @@ def get_db_tx():
         raise
     finally:
         db.close()
+
+
+def seed_default_ti():
+    if not DEFAULT_TI_NAME or not DEFAULT_TI_TELEGRAM_ID:
+        return
+
+    with get_db_tx() as db:
+        existente = (
+            db.query(UsuarioTI)
+            .filter(UsuarioTI.telegram_id == str(DEFAULT_TI_TELEGRAM_ID))
+            .first()
+        )
+
+        if existente:
+            if existente.nombre != DEFAULT_TI_NAME:
+                existente.nombre = DEFAULT_TI_NAME
+                db.flush()
+            return
+
+        usuario_ti = UsuarioTI(
+            nombre=DEFAULT_TI_NAME,
+            telegram_id=str(DEFAULT_TI_TELEGRAM_ID),
+        )
+        db.add(usuario_ti)
+        db.flush()
+
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    seed_default_ti()
+
+
+init_db()
