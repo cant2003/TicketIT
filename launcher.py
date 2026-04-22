@@ -275,7 +275,7 @@ def eliminar_ti_menu(admin_id):
         for usuario in usuarios_ti:
             print(f"- {usuario.nombre} | Telegram ID: {usuario.telegram_id}")
 
-    telegram_id = input("Telegram ID del TI a eliminar: ").strip()
+    telegram_id = input("\nTelegram ID del TI a eliminar: ").strip()
 
     if not telegram_id:
         print("Debes ingresar un Telegram ID.")
