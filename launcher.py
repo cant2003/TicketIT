@@ -4,6 +4,14 @@ import subprocess
 import time
 from pathlib import Path
 
+from bot.services.usuarios_service import (
+    buscar_usuario_ti_por_telegram_id,
+    eliminar_usuario_ti,
+    es_ti_por_telegram_id,
+    obtener_o_crear_usuario_ti,
+    obtener_usuarios_ti,
+)
+
 ROOT_DIR = Path(__file__).resolve().parent
 LOG_DIR = ROOT_DIR / "logs"
 VENV_PYTHON = ROOT_DIR / "venv" / "Scripts" / "python.exe"
@@ -71,6 +79,10 @@ def start_service(key):
 
     log_file = open(service["log"], "a", encoding="utf-8", errors="replace")
 
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+
     process = subprocess.Popen(
         service["command"],
         cwd=ROOT_DIR,
@@ -78,6 +90,7 @@ def start_service(key):
         stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL,
         creationflags=CREATE_NEW_PROCESS_GROUP,
+        env=env,
     )
 
     processes[key] = {
@@ -182,6 +195,158 @@ def show_logs():
     input("\nPresiona Enter para volver...")
 
 
+def pedir_acceso_ti():
+    clear_screen()
+    print("====================================")
+    print("         Acceso Gestion TI")
+    print("====================================\n")
+
+    telegram_id = input("Ingresa tu Telegram ID: ").strip()
+
+    if not telegram_id:
+        print("Debes ingresar un Telegram ID.")
+        time.sleep(1.5)
+        return None
+
+    if not es_ti_por_telegram_id(telegram_id):
+        print("Acceso denegado. No eres usuario TI.")
+        time.sleep(1.5)
+        return None
+
+    return telegram_id
+
+
+def listar_tis():
+    clear_screen()
+    usuarios_ti = obtener_usuarios_ti()
+
+    print("====================================")
+    print("         Usuarios TI actuales")
+    print("====================================\n")
+
+    if not usuarios_ti:
+        print("No hay usuarios TI registrados.")
+    else:
+        for usuario in usuarios_ti:
+            print(f"- {usuario.nombre} | Telegram ID: {usuario.telegram_id}")
+
+    input("\nPresiona Enter para volver...")
+
+
+def agregar_ti():
+    clear_screen()
+    print("====================================")
+    print("            Agregar TI")
+    print("====================================\n")
+
+    nombre = input("Nombre del TI: ").strip()
+    telegram_id = input("Telegram ID del TI: ").strip()
+
+    if not nombre or not telegram_id:
+        print("Nombre e ID son obligatorios.")
+        time.sleep(1.5)
+        return
+
+    confirmacion = input(
+        f"Confirmar agregar a '{nombre}' con ID '{telegram_id}'? (y/n): "
+    ).strip().lower()
+
+    if confirmacion != "y":
+        print("Operación cancelada.")
+        time.sleep(1.2)
+        return
+
+    usuario = obtener_o_crear_usuario_ti(nombre, telegram_id)
+    print(f"TI guardado correctamente: {usuario.nombre} ({usuario.telegram_id})")
+    time.sleep(1.5)
+
+
+def eliminar_ti_menu(admin_id):
+    clear_screen()
+    usuarios_ti = obtener_usuarios_ti()
+    print("====================================")
+    print("            Eliminar TI")
+    print("====================================\n")
+    
+    
+    if not usuarios_ti:
+        print("No hay usuarios TI registrados.")
+    else:
+        for usuario in usuarios_ti:
+            print(f"- {usuario.nombre} | Telegram ID: {usuario.telegram_id}")
+
+    telegram_id = input("Telegram ID del TI a eliminar: ").strip()
+
+    if not telegram_id:
+        print("Debes ingresar un Telegram ID.")
+        time.sleep(1.5)
+        return
+
+    usuario = buscar_usuario_ti_por_telegram_id(telegram_id)
+
+    if not usuario:
+        print("No se encontró un TI con ese Telegram ID.")
+        time.sleep(1.5)
+        return
+
+    usuarios = obtener_usuarios_ti()
+
+    if len(usuarios) <= 1:
+        print("No puedes eliminar el último usuario TI.")
+        time.sleep(1.5)
+        return
+
+    if str(usuario.telegram_id) == str(admin_id):
+        print("No puedes eliminarte a ti mismo.")
+        time.sleep(1.5)
+        return
+
+    confirmacion = input(
+        f"Confirmar eliminar a '{usuario.nombre}' ({usuario.telegram_id})? (y/n): "
+    ).strip().lower()
+
+    if confirmacion != "y":
+        print("Operación cancelada.")
+        time.sleep(1.2)
+        return
+
+    eliminado = eliminar_usuario_ti(telegram_id)
+
+    if eliminado:
+        print("TI eliminado correctamente.")
+    else:
+        print("No se pudo eliminar el TI.")
+
+    time.sleep(1.5)
+
+
+def gestionar_tis(admin_id):
+    while True:
+        clear_screen()
+        print("====================================")
+        print("          Gestion de TI")
+        print("====================================")
+        print("1. Listar TI")
+        print("2. Agregar TI")
+        print("3. Eliminar TI")
+        print("0. Volver")
+        print("====================================")
+
+        option = input("Selecciona una opcion: ").strip()
+
+        if option == "1":
+            listar_tis()
+        elif option == "2":
+            agregar_ti()
+        elif option == "3":
+            eliminar_ti_menu(admin_id)
+        elif option == "0":
+            break
+        else:
+            print("Opcion invalida.")
+            time.sleep(1.2)
+
+
 def menu():
     ensure_log_dir()
     validate_environment()
@@ -202,6 +367,7 @@ def menu():
         print("7. Encender Ngrok")
         print("8. Apagar Ngrok")
         print("9. Ver logs")
+        print("10. Gestionar TI")
         print("0. Salir")
         print("====================================")
 
@@ -227,6 +393,11 @@ def menu():
             stop_service("ngrok")
         elif option == "9":
             show_logs()
+            continue
+        elif option == "10":
+            admin_id = pedir_acceso_ti()
+            if admin_id:
+                gestionar_tis(admin_id)
             continue
         elif option == "0":
             stop_all()

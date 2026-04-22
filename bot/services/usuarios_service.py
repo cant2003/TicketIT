@@ -66,3 +66,28 @@ def obtener_telegram_ids_ti():
     with get_db() as db:
         usuarios_ti = db.query(UsuarioTI).all()
         return [usuario.telegram_id for usuario in usuarios_ti]
+
+
+def buscar_usuario_ti_por_telegram_id(telegram_id: str):
+    with get_db() as db:
+        return (
+            db.query(UsuarioTI)
+            .filter(UsuarioTI.telegram_id == str(telegram_id))
+            .first()
+        )
+
+
+def eliminar_usuario_ti(telegram_id: str):
+    with get_db_tx() as db:
+        usuario_ti = (
+            db.query(UsuarioTI)
+            .filter(UsuarioTI.telegram_id == str(telegram_id))
+            .first()
+        )
+
+        if not usuario_ti:
+            return False
+
+        db.delete(usuario_ti)
+        db.flush()
+        return True
