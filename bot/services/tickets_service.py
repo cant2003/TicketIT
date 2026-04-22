@@ -52,7 +52,7 @@ def tomar_ticket(ticket_id, usuario, telegram_id):
             raise ValueError("Ya está en proceso")
 
         ticket.estado = "En Proceso"
-        ticket.asignado_a = usuario  # compatibilidad temporal
+        ticket.asignado_a = usuario
         ticket.asignado_ti_id = usuario_ti.id
         ticket.fecha_actualizacion = _ahora()
 
@@ -77,8 +77,8 @@ def crear_ticket(data):
 
     with get_db_tx() as db:
         ticket = Ticket(
-            usuario=data["usuario"],  # compatibilidad temporal
-            chat_id=str(data["chat_id"]),  # compatibilidad temporal
+            usuario=data["usuario"],
+            chat_id=str(data["chat_id"]),
             usuario_id=usuario.id,
             area=data["area"],
             descripcion=data["descripcion"],
@@ -113,7 +113,7 @@ def cerrar_ticket_con_observacion(ticket_id, observacion, usuario, telegram_id):
 
         ticket.estado = "Cerrado"
         ticket.observacion = observacion
-        ticket.asignado_a = usuario  # compatibilidad temporal
+        ticket.asignado_a = usuario
         ticket.asignado_ti_id = usuario_ti.id
         ticket.fecha_actualizacion = _ahora()
 
@@ -181,26 +181,3 @@ async def notificar_ti(context, ticket):
             )
         except Exception as e:
             print(f"Error enviando a {telegram_id}:", e)
-
-#!------------------------------------------------------------------------------
-# def cerrar_ticket(ticket_id):
-#     with get_db_tx() as db:
-#         ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
-
-#         if not ticket:
-#             raise ValueError("Ticket no encontrado")
-
-#         ticket.estado = "Cerrado"
-#         ticket.fecha_actualizacion = _ahora()
-
-#         db.flush()
-#         db.refresh(ticket)
-
-#         ticket_id_sync = ticket.id
-
-#     try:
-#         crear_job_sync(ticket_id_sync)
-#     except Exception as e:
-#         print("Error actualizando Google Sheets al cerrar ticket:", e)
-
-#     return ticket
