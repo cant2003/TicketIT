@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-telegram-bot
+SQLAlchemy
+python-dotenv
+pandas
+openpyxl
+google-api-python-client
+google-auth

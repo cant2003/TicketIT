@@ -1,0 +1,137 @@
+from datetime import datetime, timedelta
+
+from backend.db import Ticket, UsuarioTI, get_db
+
+
+def _query_cerrados(db):
+    return db.query(Ticket).filter(Ticket.estado == "Cerrado")
+
+
+def tickets_todos():
+    with get_db() as db:
+        return (
+            db.query(Ticket)
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
+
+
+def tickets_asignado(asignado):
+    with get_db() as db:
+        return (
+            _query_cerrados(db)
+            .outerjoin(UsuarioTI, Ticket.asignado_ti_id == UsuarioTI.id)
+            .filter(
+                (UsuarioTI.nombre.ilike(f"%{asignado}%"))
+                | (Ticket.asignado_a.ilike(f"%{asignado}%"))
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
+
+
+def tickets_usuario(usuario):
+    with get_db() as db:
+        return (
+            _query_cerrados(db)
+            .filter(Ticket.usuario.ilike(f"%{usuario}%"))
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
+
+
+def tickets_ultimo_anyo():
+    ahora = datetime.utcnow()
+    hace_12_meses = ahora - timedelta(days=365)
+
+    with get_db() as db:
+        return (
+            _query_cerrados(db)
+            .filter(
+                Ticket.fecha_creacion >= hace_12_meses,
+                Ticket.fecha_creacion <= ahora,
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
+
+
+def tickets_ultimo_mes():
+    ahora = datetime.utcnow()
+    hace_30_dias = ahora - timedelta(days=30)
+
+    with get_db() as db:
+        return (
+            _query_cerrados(db)
+            .filter(
+                Ticket.fecha_creacion >= hace_30_dias,
+                Ticket.fecha_creacion <= ahora,
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
+
+
+def tickets_hoy():
+    ahora = datetime.utcnow()
+
+    inicio_dia = datetime(ahora.year, ahora.month, ahora.day)
+    fin_dia = inicio_dia + timedelta(days=1)
+
+    with get_db() as db:
+        return (
+            _query_cerrados(db)
+            .filter(
+                Ticket.fecha_creacion >= inicio_dia,
+                Ticket.fecha_creacion < fin_dia,
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
+
+
+def tickets_semana_actual():
+    ahora = datetime.utcnow()
+
+    inicio_semana = ahora - timedelta(days=ahora.weekday())
+    inicio_semana = datetime(inicio_semana.year, inicio_semana.month, inicio_semana.day)
+
+    fin_semana = inicio_semana + timedelta(days=7)
+
+    with get_db() as db:
+        return (
+            _query_cerrados(db)
+            .filter(
+                Ticket.fecha_creacion >= inicio_semana,
+                Ticket.fecha_creacion < fin_semana,
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
+
+
+def tickets_por_rango(fecha_inicio_str, fecha_fin_str):
+    try:
+        inicio = datetime.strptime(fecha_inicio_str, "%d-%m-%Y")
+        fin = datetime.strptime(fecha_fin_str, "%d-%m-%Y") + timedelta(days=1)
+    except ValueError:
+        raise ValueError("Formato de fecha inválido. Usa dd-mm-yyyy")
+
+    with get_db() as db:
+        return (
+            _query_cerrados(db)
+            .filter(
+                Ticket.fecha_creacion >= inicio,
+                Ticket.fecha_creacion < fin,
+            )
+            .order_by(Ticket.id.desc())
+            .limit(10000)
+            .all()
+        )
