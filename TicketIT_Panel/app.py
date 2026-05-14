@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from email.message import EmailMessage
 
+import atexit
+
 from flask import (
     Flask,
     render_template,
@@ -28,6 +30,7 @@ from services.launcher_service import (
     stop_service,
     start_all,
     stop_all,
+    clear_logs,
 )
 
 
@@ -35,7 +38,20 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__)
+
+clear_logs()
+
 app.secret_key = os.getenv("SECRET_KEY", "cambia-esta-clave")
+
+def shutdown_services_on_exit():
+    try:
+        stop_all()
+        print("Servicios detenidos automáticamente al cerrar el panel.")
+    except Exception as e:
+        print(f"No se pudieron detener los servicios: {e}")
+
+
+atexit.register(shutdown_services_on_exit)
 
 DB_PATH = Path(os.getenv("TICKETIT_DB", str(BASE_DIR / "tickets.db")))
 
@@ -364,49 +380,76 @@ def api_users():
         return jsonify({"ok": False, "msg": "No existe tabla de usuarios"}), 400
 
     cs = cols(ut)
-    idc = find_col(
-        cs,
-        ["telegram_id", "chat_id", "id_telegram", "telegram", "user_id"],
-    )
+
+    idc = find_col(cs, ["telegram_id", "chat_id", "id_telegram", "telegram", "user_id"])
     namec = find_col(cs, ["nombre", "name", "usuario", "username"])
+    createdc = find_col(cs, ["creado", "created_at", "fecha_creacion"])
 
     if not idc:
-        return jsonify(
-            {"ok": False, "msg": "No encuentro columna telegram_id/chat_id"}
-        ), 400
+        return jsonify({"ok": False, "msg": "No encuentro columna telegram_id/chat_id"}), 400
 
     try:
         with con() as c:
             if request.method == "POST":
-                tid = (request.json or {}).get("telegram_id", "").strip()
-                name = (request.json or {}).get("nombre", "").strip()
+                data = request.json or {}
+                tid = data.get("telegram_id", "").strip()
+                name = data.get("nombre", "").strip()
 
                 if not tid:
                     return jsonify({"ok": False, "msg": "ID vacío"}), 400
 
+                fields = [idc]
+                values = [tid]
+
                 if namec and name:
-                    c.execute(
-                        f"insert into {q(ut)} ({q(idc)}, {q(namec)}) values (?, ?)",
-                        (tid, name),
-                    )
-                else:
-                    c.execute(
-                        f"insert into {q(ut)} ({q(idc)}) values (?)",
-                        (tid,),
-                    )
+                    fields.append(namec)
+                    values.append(name)
+
+                if createdc:
+                    fields.append(createdc)
+                    values.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
+
+                columns_sql = ", ".join(q(f) for f in fields)
+                placeholders = ", ".join("?" for _ in fields)
+
+                c.execute(
+                    f"insert into {q(ut)} ({columns_sql}) values ({placeholders})",
+                    values,
+                )
 
                 c.commit()
                 return jsonify({"ok": True})
 
-            tid = (request.json or {}).get("telegram_id", "").strip()
+            data = request.json or {}
+            tids = data.get("telegram_ids") or []
+
+            if not tids:
+                tid = data.get("telegram_id", "").strip()
+                if tid:
+                    tids = [tid]
+
+            tids = [str(t).strip() for t in tids if str(t).strip()]
+
+            if not tids:
+                return jsonify({"ok": False, "msg": "No hay usuarios seleccionados"}), 400
+
+            current_user = str(session.get("telegram_id", "")).strip()
+
+            if current_user in tids:
+                return jsonify({
+                    "ok": False,
+                    "msg": "No puedes eliminar el usuario con el que estás conectado"
+                }), 400
+
+            placeholders = ", ".join("?" for _ in tids)
 
             c.execute(
-                f"delete from {q(ut)} where cast({q(idc)} as text)=?",
-                (tid,),
+                f"delete from {q(ut)} where cast({q(idc)} as text) in ({placeholders})",
+                tids,
             )
-            c.commit()
 
-            return jsonify({"ok": True})
+            c.commit()
+            return jsonify({"ok": True, "deleted": len(tids)})
 
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 400

@@ -67,6 +67,15 @@
             placeholder="Buscar por cualquier dato..."
             oninput="loadTable()"
           />
+          <button
+            class="btn btn-outline-danger"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#searchHelpModal"
+            title="Ayuda del buscador"
+          >
+            <i class="bi bi-info-circle"></i>
+          </button>
         </div>
       </div>
       <div class="col-md-4 text-md-end">
@@ -103,6 +112,88 @@
           <i class="bi bi-save me-1"></i>Guardar cambios
         </button>
       </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="searchHelpModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-search me-2"></i>
+          Ayuda del buscador
+        </h5>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+
+        <p class="text-muted">
+          Puedes buscar texto libre o utilizar filtros avanzados.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Búsqueda simple</h6>
+
+        <code>impresora</code>
+
+        <p class="small text-muted">
+          Busca coincidencias en cualquier columna.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Filtro por columna</h6>
+
+        <code>estado: abierto</code>
+
+        <p class="small text-muted">
+          Busca en una columna específica.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Múltiples valores</h6>
+
+        <code>estado: abierto, cerrado</code>
+
+        <p class="small text-muted">
+          Busca varios valores usando coma.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Múltiples filtros</h6>
+
+        <code>usuario: cristian ; estado: abierto</code>
+
+        <p class="small text-muted">
+          Combina filtros usando punto y coma.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Fechas</h6>
+
+        <code>27-04-2026</code>
+
+        <p class="small text-muted">
+          Compatible con fechas visuales y formato SQL.
+        </p>
+
+        <div class="alert alert-info mt-4 mb-0">
+          El buscador ignora mayúsculas, espacios y tildes.
+        </div>
+
+      </div>
+
     </div>
   </div>
 </div>

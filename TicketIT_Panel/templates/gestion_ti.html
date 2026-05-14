@@ -1,1 +1,163 @@
-{% extends 'base.html' %}{% block content %}<script>window.TABLE_KIND='users'</script><div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"><div><h1 class="page-title">Gestión TI</h1><p class="small text-muted mb-0"><i>Base conectada: {{ db_path }}</i></p></div><div class="d-flex gap-2"><button class="btn btn-danger rounded-pill" onclick="deleteSelectedUser()"><i class="bi bi-trash3-fill me-1"></i>Eliminar TI</button><button class="btn btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#userModal"><i class="bi bi-person-plus-fill me-1"></i>Agregar TI</button></div></div><div class="card border-0 shadow-sm"><div class="card-body"><div class="input-group mb-3"><span class="input-group-text"><i class="bi bi-search"></i></span><input id="search" class="form-control" placeholder="Buscar TI..." oninput="loadTable()"></div><div class="table-responsive"><table id="data-table" class="table table-hover align-middle"></table></div></div></div><div class="modal fade" id="userModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Agregar nuevo TI</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><label class="form-label">ID de Telegram</label><input id="newTelegramId" class="form-control mb-3" placeholder="Ej: 123456789"><label class="form-label">Nombre / Usuario opcional</label><input id="newTiName" class="form-control" placeholder="Ej: Cristian"></div><div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-success" onclick="addUserFromForm()">Guardar</button></div></div></div></div>{% endblock %}
+{% extends 'base.html' %}{% block content %}
+<script>
+  window.TABLE_KIND = "users";
+</script>
+<div
+  class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"
+>
+  <div>
+    <h1 class="page-title">Gestión TI</h1>
+    <p class="small text-muted mb-0"><i>Base conectada: {{ db_path }}</i></p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-danger rounded-pill" onclick="deleteSelectedUser()">
+      <i class="bi bi-trash3-fill me-1"></i>Eliminar TI</button
+    ><button
+      class="btn btn-success rounded-pill"
+      data-bs-toggle="modal"
+      data-bs-target="#userModal"
+    >
+      <i class="bi bi-person-plus-fill me-1"></i>Agregar TI
+    </button>
+  </div>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="input-group mb-3">
+      <span class="input-group-text"><i class="bi bi-search"></i></span
+      ><input
+        id="search"
+        class="form-control"
+        placeholder="Buscar TI..."
+        oninput="loadTable()"
+      />
+      <button
+        class="btn btn-outline-danger"
+        type="button"
+        data-bs-toggle="modal"
+        data-bs-target="#searchHelpModal"
+        title="Ayuda del buscador"
+      >
+        <i class="bi bi-info-circle"></i>
+      </button>
+    </div>
+    <div class="table-responsive">
+      <table id="data-table" class="table table-hover align-middle"></table>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-person-plus me-2"></i>Agregar nuevo TI
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">ID de Telegram</label
+        ><input
+          id="newTelegramId"
+          class="form-control mb-3"
+          placeholder="Ej: 123456789"
+        /><label class="form-label">Nombre / Usuario opcional</label
+        ><input
+          id="newTiName"
+          class="form-control"
+          placeholder="Ej: Cristian"
+        />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancelar</button
+        ><button class="btn btn-success" onclick="addUserFromForm()">
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="searchHelpModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-search me-2"></i>
+          Ayuda del buscador TI
+        </h5>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+
+        <p class="text-muted">
+          Puedes buscar usuarios TI utilizando texto libre o filtros avanzados.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Búsqueda simple</h6>
+
+        <code>cristian</code>
+
+        <p class="small text-muted">
+          Busca coincidencias en cualquier columna.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Buscar por nombre</h6>
+
+        <code>nombre: cristian</code>
+
+        <p class="small text-muted">
+          Busca por nombre del usuario TI.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Buscar por Telegram ID</h6>
+
+        <code>telegram: 8020142618</code>
+
+        <p class="small text-muted">
+          Busca por Telegram ID.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Buscar por fecha</h6>
+
+        <code>creado: 14-05-2026</code>
+
+        <p class="small text-muted">
+          Compatible con formato visual y SQL.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Múltiples filtros</h6>
+
+        <code>nombre: cristian ; telegram: 8020</code>
+
+        <p class="small text-muted">
+          Puedes combinar filtros usando punto y coma.
+        </p>
+
+        <div class="alert alert-info mt-4 mb-0">
+          El buscador ignora mayúsculas, espacios y tildes.
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

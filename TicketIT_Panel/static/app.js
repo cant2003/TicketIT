@@ -18,6 +18,14 @@ const COLUMN_NAMES = {
   observacion: "Observación TI",
   fecha_actualizacion: "Actualización",
 };
+
+const USER_COLUMN_NAMES = {
+  id: "ID",
+  nombre: "Nombre TI",
+  telegram_id: "Telegram ID",
+  creado: "Creado",
+};
+
 const SEARCH_ALIASES = {
   id: "id",
   usuario: "usuario",
@@ -36,6 +44,12 @@ const SEARCH_ALIASES = {
   observación: "observacion",
   actualizacion: "fecha_actualizacion",
   actualización: "fecha_actualizacion",
+
+  nombre: "nombre",
+  nombre_ti: "nombre",
+  telegram: "telegram_id",
+  telegram_id: "telegram_id",
+  creado: "creado",
 };
 
 function showToast(msg, type = "success") {
@@ -194,28 +208,23 @@ function searchableValue(key, value) {
 }
 
 function parseSearchQuery(query) {
-
   const parts = query
     .split(";")
-    .map(p => p.trim())
+    .map((p) => p.trim())
     .filter(Boolean);
 
   const filters = [];
   const global = [];
 
   for (const part of parts) {
-
-    const match = part.match(
-      /^([\wáéíóúÁÉÍÓÚñÑ_ ]+)\s*:\s*(.+)$/
-    );
+    const match = part.match(/^([\wáéíóúÁÉÍÓÚñÑ_ ]+)\s*:\s*(.+)$/);
 
     if (!match) {
       global.push(normalizeText(part));
       continue;
     }
 
-    const rawKey = normalizeText(match[1])
-      .replace(/\s+/g, "_");
+    const rawKey = normalizeText(match[1]).replace(/\s+/g, "_");
 
     const value = normalizeText(match[2]);
 
@@ -228,7 +237,10 @@ function parseSearchQuery(query) {
 
     filters.push({
       column,
-      value,
+      values: value
+        .split(",")
+        .map((v) => normalizeText(v))
+        .filter(Boolean),
     });
   }
 
@@ -239,7 +251,6 @@ function parseSearchQuery(query) {
 }
 
 function applyAdvancedSearch(rows) {
-
   const input = document.getElementById("search");
   const query = input?.value || "";
 
@@ -248,33 +259,23 @@ function applyAdvancedSearch(rows) {
   const parsed = parseSearchQuery(query);
 
   return rows.filter((row) => {
-
     const filtersOk = parsed.filters.every((f) => {
-
-      return searchableValue(
-        f.column,
-        row[f.column]
-      ).includes(f.value);
-
+      return f.values.some((v) =>
+        searchableValue(f.column, row[f.column]).includes(v),
+      );
     });
 
     if (!filtersOk) return false;
 
     const globalOk = parsed.global.every((g) => {
-
       return Object.entries(row).some(([key, value]) => {
-
         if (key === "_rowid") return false;
 
-        return searchableValue(key, value)
-          .includes(g);
-
+        return searchableValue(key, value).includes(g);
       });
-
     });
 
     return globalOk;
-
   });
 }
 
@@ -286,7 +287,9 @@ function renderTable(kind) {
   let allRows = [...(tableData.rows || [])];
   allRows = applyAdvancedSearch(allRows);
   const visibleCols =
-    kind === "tickets" ? cols.filter((c) => COLUMN_NAMES[c]) : cols;
+    kind === "tickets"
+      ? cols.filter((c) => COLUMN_NAMES[c])
+      : cols.filter((c) => USER_COLUMN_NAMES[c]);
 
   if (sortState.col) {
     allRows.sort(
@@ -322,7 +325,7 @@ function renderTable(kind) {
 
   head += visibleCols
     .map((c) => {
-      const title = kind === "tickets" ? COLUMN_NAMES[c] : c;
+      const title = kind === "tickets" ? COLUMN_NAMES[c] : USER_COLUMN_NAMES[c];
 
       return `<th role="button" onclick="sortBy('${String(c).replaceAll("'", "\\'")}')">
         ${title}
@@ -342,7 +345,7 @@ function renderTable(kind) {
         let tr = `<tr class="${kind === "tickets" ? rowClass(row) : ""}">`;
 
         if (kind === "users") {
-          tr += `<td><input class="form-check-input user-radio" type="radio" name="userPick" value="${getTelegramId(row)}"></td>`;
+          tr += `<td><input class="form-check-input user-check" type="checkbox" value="${getTelegramId(row)}"></td>`;
         }
 
         tr += visibleCols
@@ -352,7 +355,10 @@ function renderTable(kind) {
             if (
               c.toLowerCase().includes("fecha") ||
               c.toLowerCase().includes("created") ||
-              c.toLowerCase().includes("updated")
+              c.toLowerCase().includes("updated") ||
+              c.toLowerCase().includes("creacion") ||
+              c.toLowerCase().includes("actualizacion") ||
+              c.toLowerCase().includes("creado")
             ) {
               value = formatDate(value);
             }
@@ -596,13 +602,9 @@ function getTelegramId(row) {
 
   let k =
     keys.find((x) =>
-      [
-        "telegram_id",
-        "chat_id",
-        "id_telegram",
-        "telegram",
-        "user_id",
-      ].includes(x.toLowerCase()),
+      ["telegram_id", "chat_id", "id_telegram", "telegram", "user_id"].includes(
+        x.toLowerCase(),
+      ),
     ) ||
     keys.find((x) => x.toLowerCase().includes("telegram")) ||
     keys[1] ||
@@ -651,17 +653,19 @@ async function addUserFromForm() {
 }
 
 async function deleteSelectedUser() {
-  let picked = document.querySelector(".user-radio:checked");
+  let picked = [...document.querySelectorAll(".user-check:checked")];
 
-  if (!picked) {
-    showToast("Selecciona un TI de la tabla para eliminar", "warning");
+  if (!picked.length) {
+    showToast("Selecciona uno o más TI para eliminar", "warning");
     return;
   }
+
+  let ids = picked.map((x) => x.value);
 
   if (
     !(await confirmBox(
       "Eliminar TI",
-      `¿Seguro que deseas eliminar el ID ${picked.value}?`,
+      `¿Seguro que deseas eliminar ${ids.length} usuario(s) TI seleccionado(s)?`,
       "Eliminar",
     ))
   )
@@ -670,7 +674,7 @@ async function deleteSelectedUser() {
   const r = await fetch("/api/users", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ telegram_id: picked.value }),
+    body: JSON.stringify({ telegram_ids: ids }),
   });
 
   const j = await r.json().catch(() => ({}));

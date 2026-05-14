@@ -37,6 +37,30 @@ SERVICES = {
     "ngrok": NGROK_CMD,
 }
 
+def clear_logs():
+    LOG_DIR.mkdir(exist_ok=True)
+
+    for service in SERVICES:
+        log_path = LOG_DIR / f"{service}.log"
+
+        try:
+            log_path.write_text(
+                "",
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+
+    panel_log = LOG_DIR / "panel.log"
+
+    try:
+        panel_log.write_text(
+            "",
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
 
 def is_running(service):
     process = processes.get(service)
