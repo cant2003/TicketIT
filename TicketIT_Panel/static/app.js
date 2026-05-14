@@ -578,6 +578,52 @@ async function saveTicket() {
   }
 }
 
+function getFilteredRowsForExport() {
+  let rows = [...(tableData.rows || [])];
+
+  rows = applyAdvancedSearch(rows);
+
+  if (sortState.col) {
+    rows.sort(
+      (a, b) =>
+        String(a[sortState.col] ?? "").localeCompare(
+          String(b[sortState.col] ?? ""),
+          undefined,
+          { numeric: true, sensitivity: "base" },
+        ) * sortState.dir,
+    );
+  }
+
+  return rows;
+}
+
+async function exportTicketsExcel() {
+  const rows = getFilteredRowsForExport();
+
+  const r = await fetch("/api/export/tickets", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ rows }),
+  });
+
+  if (!r.ok) {
+    showToast("No se pudo generar el Excel", "danger");
+    return;
+  }
+
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "reporte_tickets.xlsx";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
 async function sendTicketsEmail() {
   if (
     !(await confirmBox(
@@ -588,7 +634,15 @@ async function sendTicketsEmail() {
   )
     return;
 
-  const r = await fetch("/api/email/tickets", { method: "POST" });
+  const rows = getFilteredRowsForExport();
+
+  const r = await fetch("/api/email/tickets", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ rows }),
+  });
   const j = await r.json().catch(() => ({}));
 
   showToast(

@@ -10,11 +10,12 @@
     <p class="small text-muted mb-0"><i>Base conectada: {{ db_path }}</i></p>
   </div>
   <div class="d-flex gap-2 flex-wrap">
-    <button class="btn btn-danger rounded-pill" onclick="sendTicketsEmail()">
+    <button class="btn btn-danger me-1" onclick="sendTicketsEmail()">
       <i class="bi bi-envelope-fill me-1"></i>Enviar a correo</button
-    ><a class="btn btn-success rounded-pill" href="/api/export/tickets"
-      ><i class="bi bi-file-earmark-excel-fill me-1"></i>Exportar Excel</a
-    >
+    ><button class="btn btn-success" onclick="exportTicketsExcel()">
+      <i class="bi bi-file-earmark-excel me-1"></i>
+      Exportar Excel
+    </button>
   </div>
 </div>
 <div class="row g-3 mb-4">
@@ -118,7 +119,6 @@
 <div class="modal fade" id="searchHelpModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
-
       <div class="modal-header">
         <h5 class="modal-title fw-bold">
           <i class="bi bi-search me-2"></i>
@@ -133,12 +133,11 @@
       </div>
 
       <div class="modal-body">
-
         <p class="text-muted">
           Puedes buscar texto libre o utilizar filtros avanzados.
         </p>
 
-        <hr>
+        <hr />
 
         <h6 class="fw-bold">Búsqueda simple</h6>
 
@@ -148,37 +147,31 @@
           Busca coincidencias en cualquier columna.
         </p>
 
-        <hr>
+        <hr />
 
         <h6 class="fw-bold">Filtro por columna</h6>
 
         <code>estado: abierto</code>
 
-        <p class="small text-muted">
-          Busca en una columna específica.
-        </p>
+        <p class="small text-muted">Busca en una columna específica.</p>
 
-        <hr>
+        <hr />
 
         <h6 class="fw-bold">Múltiples valores</h6>
 
         <code>estado: abierto, cerrado</code>
 
-        <p class="small text-muted">
-          Busca varios valores usando coma.
-        </p>
+        <p class="small text-muted">Busca varios valores usando coma.</p>
 
-        <hr>
+        <hr />
 
         <h6 class="fw-bold">Múltiples filtros</h6>
 
         <code>usuario: cristian ; estado: abierto</code>
 
-        <p class="small text-muted">
-          Combina filtros usando punto y coma.
-        </p>
+        <p class="small text-muted">Combina filtros usando punto y coma.</p>
 
-        <hr>
+        <hr />
 
         <h6 class="fw-bold">Fechas</h6>
 
@@ -191,9 +184,7 @@
         <div class="alert alert-info mt-4 mb-0">
           El buscador ignora mayúsculas, espacios y tildes.
         </div>
-
       </div>
-
     </div>
   </div>
 </div>

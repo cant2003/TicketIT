@@ -20,9 +20,8 @@ from flask import (
 )
 
 from dotenv import load_dotenv
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
+from openpyxl import load_workbook
+
 
 from services.launcher_service import (
     get_status,
@@ -480,84 +479,47 @@ def api_launcher_stop(service):
     return jsonify({"ok": ok, "msg": msg}), 200 if ok else 400
 
 
-def build_ticket_excel():
-    tt = ticket_table()
+def build_ticket_excel(rows=None):
+    template_path = BASE_DIR / "templates_excel" / "PlantillaReporte.xlsx"
 
-    if not tt:
-        raise RuntimeError("No existe tabla de tickets")
+    wb = load_workbook(template_path)
+    ws = wb["Tickets"]
 
-    with con() as c:
-        rows = [dict(r) for r in c.execute(f"select * from {q(tt)}").fetchall()]
+    export_columns = [
+        "id",
+        "usuario",
+        "area",
+        "descripcion",
+        "estado",
+        "fecha_creacion",
+        "asignado_a",
+        "observacion",
+        "fecha_actualizacion",
+    ]
 
-    headers = list(rows[0].keys()) if rows else cols(tt)
+    ws["A2"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Reporte Tickets"
+    start_row = 4
 
-    last_col = max(1, len(headers))
+    for row in range(start_row, ws.max_row + 1):
+        for col in range(1, len(export_columns) + 1):
+            ws.cell(row, col).value = None
 
-    dark = "1F4E79"
-    head = "4F81BD"
+    rows = rows or []
 
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=last_col)
-    ws.cell(1, 1, "Reporte de Tickets").fill = PatternFill("solid", fgColor=dark)
-    ws.cell(1, 1).font = Font(color="FFFFFF", bold=True, size=14)
-    ws.cell(1, 1).alignment = Alignment(horizontal="center")
+    for r_idx, row_data in enumerate(rows, start_row):
+        for c_idx, key in enumerate(export_columns, 1):
+            value = row_data.get(key, "")
 
-    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=last_col)
-    ws.cell(
-        2,
-        1,
-        f"Última sincronización: {datetime.now().strftime('%d-%m-%Y %H:%M:%S')}",
-    )
-    ws.cell(2, 1).font = Font(italic=True, size=10)
-    ws.cell(2, 1).alignment = Alignment(horizontal="center")
+            if key in ["fecha_creacion", "fecha_actualizacion"] and value:
+                try:
+                    value = datetime.fromisoformat(str(value)).strftime(
+                        "%d-%m-%Y %H:%M:%S"
+                    )
+                except Exception:
+                    pass
 
-    thin = Side(style="thin", color="000000")
-
-    for i, h in enumerate(headers, 1):
-        cell = ws.cell(3, i, h)
-        cell.fill = PatternFill("solid", fgColor=head)
-        cell.font = Font(color="FFFFFF", bold=True)
-        cell.border = Border(top=thin, bottom=thin, left=thin, right=thin)
-        cell.alignment = Alignment(horizontal="center")
-
-    state_col = find_col(headers, ["estado", "status", "state"])
-
-    for r_idx, row in enumerate(rows, 4):
-        cl = status_class(row.get(state_col)) if state_col else ""
-
-        color = (
-            "C6EFCE"
-            if cl == "abierto"
-            else "FFEB9C"
-            if cl == "proceso"
-            else "FFC7CE"
-            if cl == "cerrado"
-            else "FFFFFF"
-        )
-
-        for c_idx, h in enumerate(headers, 1):
-            cell = ws.cell(r_idx, c_idx, row.get(h, ""))
-            cell.fill = PatternFill("solid", fgColor=color)
-            cell.border = Border(top=thin, bottom=thin, left=thin, right=thin)
-            cell.alignment = Alignment(vertical="center", wrap_text=True)
-
-    ws.auto_filter.ref = f"A3:{get_column_letter(last_col)}{max(3, len(rows) + 3)}"
-    ws.freeze_panes = "A4"
-
-    for i, h in enumerate(headers, 1):
-        width = min(
-            max(
-                len(str(h)) + 2,
-                *(len(str(r.get(h, ""))) + 2 for r in rows[:100]),
-            )
-            if rows
-            else len(str(h)) + 2,
-            42,
-        )
-        ws.column_dimensions[get_column_letter(i)].width = width
+            ws.cell(r_idx, c_idx, value)
 
     bio = io.BytesIO()
     wb.save(bio)
@@ -566,15 +528,17 @@ def build_ticket_excel():
     return bio
 
 
-@app.route("/api/export/tickets")
+@app.post("/api/export/tickets")
 def export_tickets():
+    data = request.json or {}
+    rows = data.get("rows", [])
+
     return send_file(
-        build_ticket_excel(),
+        build_ticket_excel(rows),
         as_attachment=True,
         download_name=f"reporte_tickets_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-
 
 @app.route("/api/email/tickets", methods=["POST"])
 def email_tickets():
@@ -592,7 +556,10 @@ def email_tickets():
             }
         ), 400
 
-    bio = build_ticket_excel()
+    data_json = request.json or {}
+    rows = data_json.get("rows", [])
+
+    bio = build_ticket_excel(rows)
     data = bio.getvalue()
 
     msg = EmailMessage()
