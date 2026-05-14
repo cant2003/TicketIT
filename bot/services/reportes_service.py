@@ -1,220 +1,114 @@
-import smtplib
-from datetime import datetime
-from email.message import EmailMessage
-from io import BytesIO
+import os
+
+import requests
 
 import pandas as pd
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-
-from bot.config import DESTINATARIO, EMAIL_PASS, REMITENTE
-
-SHEET_NAME = "Reporte"
-REPORT_TITLE = "Reporte De Tickets"
-HEADER_ROW = 3
-DATA_START_ROW = 4
-
-STATUS_COLORS = {
-    "Abierto": "C6EFCE",
-    "Cerrado": "FFC7CE",
-    "En Proceso": "FFD966",
-}
-
-COLUMN_WIDTHS = {
-    "A": 7,
-    "B": 12,
-    "C": 12,
-    "D": 40,
-    "E": 10,
-    "F": 20,
-    "G": 12,
-    "H": 40,
-    "I": 20,
-}
 
 
-def generar_excel(tickets):
-    df = ordenar_dataframe(construir_dataframe(tickets))
-    output = BytesIO()
 
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name=SHEET_NAME, startrow=2)
+APPS_SCRIPT_REPORT_URL = os.getenv("APPS_SCRIPT_REPORT_URL")
+APPS_SCRIPT_REPORT_SECRET = os.getenv("APPS_SCRIPT_REPORT_SECRET")
 
-        ws = writer.sheets[SHEET_NAME]
-        ws["A1"] = REPORT_TITLE
-        ws["A2"] = f"Fecha de Reporte: {datetime.now().strftime('%d-%m-%Y (%H:%M:%S)')}"
-        ws["A1"].font = Font(size=14, bold=True)
 
-        aplicar_estilos_reporte(ws)
+def generar_reporte_apps_script(
+    *,
+    estado: str | None = None,
+    usuario: str | None = None,
+    asignado: str | None = None,
+    area: str | None = None,
+    fecha_inicio: str | None = None,
+    fecha_fin: str | None = None,
+    formato: str = "xlsx",
+    nombre_archivo: str = "Reporte_Tickets",
+):
+    if not APPS_SCRIPT_REPORT_URL:
+        raise ValueError("Falta APPS_SCRIPT_REPORT_URL en .env")
 
-    output.seek(0)
-    return output
+    if not APPS_SCRIPT_REPORT_SECRET:
+        raise ValueError("Falta APPS_SCRIPT_REPORT_SECRET en .env")
+
+    payload = {
+        "secret": APPS_SCRIPT_REPORT_SECRET,
+        "estado": estado or "",
+        "usuario": usuario or "",
+        "asignado": asignado or "",
+        "area": area or "",
+        "fechaInicio": fecha_inicio or "",
+        "fechaFin": fecha_fin or "",
+        "formato": formato,
+        "nombreArchivo": nombre_archivo,
+    }
+
+    response = requests.post(
+        APPS_SCRIPT_REPORT_URL,
+        json=payload,
+        timeout=90,
+    )
+
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get("ok"):
+        raise RuntimeError(data.get("error", "Error desconocido generando reporte"))
+
+    return data
+
 
 
 def construir_dataframe(tickets):
-    data = []
+    if tickets is None:
+        return pd.DataFrame()
 
-    for ticket in tickets:
-        ti_asignado = _obtener_nombre_ti(ticket)
+    if isinstance(tickets, pd.DataFrame):
+        return tickets
 
-        data.append(
-            {
-                "ID": ticket.id,
-                "Usuario": ticket.usuario,
-                "Área": ticket.area,
-                "Descripción": ticket.descripcion,
-                "Estado": ticket.estado,
-                "Fecha Creacion": _formatear_fecha(ticket.fecha_creacion),
-                "TI Asignado": ti_asignado,
-                "Observacion TI": ticket.observacion or "Sin observaciones",
-                "Fecha Actualiz.": _formatear_fecha(ticket.fecha_actualizacion),
-            }
-        )
+    if isinstance(tickets, list):
+        if not tickets:
+            return pd.DataFrame()
 
-    return pd.DataFrame(data)
+        if isinstance(tickets[0], dict):
+            return pd.DataFrame(tickets)
+
+        if hasattr(tickets[0], "__dict__"):
+            return pd.DataFrame([vars(t) for t in tickets])
+
+        return pd.DataFrame(tickets)
+
+    return pd.DataFrame([tickets])
 
 
 def ordenar_dataframe(df):
-    return df.sort_values(by="ID", ascending=False)
+    if df is None or df.empty:
+        return df
 
+    columnas_preferidas = [
+        "id",
+        "ticket_id",
+        "folio",
+        "fecha",
+        "fecha_creacion",
+        "usuario",
+        "nombre",
+        "area",
+        "categoria",
+        "descripcion",
+        "estado",
+        "asignado",
+        "prioridad",
+        "fecha_cierre",
+    ]
 
-def aplicar_estilos_reporte(ws):
-    aplicar_estilos_generales(ws)
-    aplicar_estilo_headers(ws)
-    auto_ajustar_columnas(ws)
-    aplicar_filtros(ws)
-    congelar_encabezado(ws)
-    aplicar_colores_estado(ws)
-    resaltar_nulos(ws)
-    ajustar_columnas_especiales(ws)
-    aplicar_bordes(ws)
+    columnas_existentes = [c for c in columnas_preferidas if c in df.columns]
+    columnas_restantes = [c for c in df.columns if c not in columnas_existentes]
 
+    df = df[columnas_existentes + columnas_restantes]
 
-def aplicar_estilos_generales(ws):
-    for row in ws.iter_rows(min_row=DATA_START_ROW):
-        for cell in row:
-            cell.alignment = Alignment(
-                horizontal="center",
-                vertical="center",
-                wrap_text=True,
-            )
+    for columna in ["fecha_creacion", "fecha", "created_at"]:
+        if columna in df.columns:
+            try:
+                df = df.sort_values(by=columna, ascending=False)
+            except Exception:
+                pass
+            break
 
-    for col in ["D", "I"]:
-        for cell in ws[col]:
-            cell.alignment = Alignment(
-                horizontal="left",
-                vertical="center",
-                wrap_text=True,
-            )
-
-
-def aplicar_estilo_headers(ws):
-    header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="4F81BD", fill_type="solid")
-
-    for cell in ws[HEADER_ROW]:
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    ws.row_dimensions[HEADER_ROW].height = 20
-
-
-def auto_ajustar_columnas(ws):
-    for col in ws.columns:
-        max_length = 0
-        col_letter = col[0].column_letter
-
-        for cell in col:
-            if cell.value:
-                max_length = max(max_length, len(str(cell.value)))
-
-        ws.column_dimensions[col_letter].width = max_length + 2
-
-
-def aplicar_filtros(ws):
-    ws.auto_filter.ref = f"A{HEADER_ROW}:I{ws.max_row}"
-
-
-def congelar_encabezado(ws):
-    ws.freeze_panes = "A4"
-
-
-def aplicar_colores_estado(ws):
-    for row in ws.iter_rows(min_row=DATA_START_ROW):
-        estado = row[4].value
-        color = STATUS_COLORS.get(estado)
-
-        if not color:
-            continue
-
-        fill = PatternFill(start_color=color, fill_type="solid")
-
-        for cell in row:
-            cell.fill = fill
-
-
-def resaltar_nulos(ws):
-    null_fill = PatternFill(start_color="EEECE1", fill_type="solid")
-
-    for cell in ws["G"]:
-        if cell.value == "Sin asignar":
-            cell.fill = null_fill
-
-    for cell in ws["H"]:
-        if cell.value == "Sin observaciones":
-            cell.fill = null_fill
-
-
-def ajustar_columnas_especiales(ws):
-    for col, width in COLUMN_WIDTHS.items():
-        ws.column_dimensions[col].width = width
-
-
-def aplicar_bordes(ws):
-    thin = Side(style="thin", color="000000")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    for row in ws.iter_rows(min_row=HEADER_ROW):
-        for cell in row:
-            cell.border = border
-
-
-def enviar_report_correo(archivo_bytes, nombre_archivo):
-    msg = EmailMessage()
-    msg["Subject"] = f"Reporte Generado: {nombre_archivo}"
-    msg["From"] = f"TI-BOT SOPORTE (No-Reply) <{REMITENTE}>"
-    msg["To"] = DESTINATARIO
-    msg.set_content(
-        "Adjunto encontraras el reporte solicitado desde el Bot de Telegram TI-BOT."
-    )
-
-    payload = (
-        archivo_bytes.getvalue()
-        if hasattr(archivo_bytes, "getvalue")
-        else archivo_bytes
-    )
-
-    msg.add_attachment(
-        payload,
-        maintype="application",
-        subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=nombre_archivo,
-    )
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(REMITENTE, EMAIL_PASS)
-        smtp.send_message(msg)
-
-
-def _formatear_fecha(fecha):
-    return fecha.strftime("%d-%m-%Y %H:%M:%S") if fecha else ""
-
-
-def _obtener_nombre_ti(ticket):
-    if getattr(ticket, "asignado_ti_ref", None) and ticket.asignado_ti_ref.nombre:
-        return ticket.asignado_ti_ref.nombre
-
-    if ticket.asignado_a:
-        return ticket.asignado_a
-
-    return "Sin asignar"
+    return df

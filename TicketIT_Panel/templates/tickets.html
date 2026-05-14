@@ -1,0 +1,200 @@
+{% extends 'base.html' %}{% block content %}
+<script>
+  window.TABLE_KIND = "tickets";
+</script>
+<div
+  class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"
+>
+  <div>
+    <h1 class="page-title">Panel Tickets</h1>
+    <p class="small text-muted mb-0"><i>Base conectada: {{ db_path }}</i></p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn btn-danger rounded-pill" onclick="sendTicketsEmail()">
+      <i class="bi bi-envelope-fill me-1"></i>Enviar a correo</button
+    ><a class="btn btn-success rounded-pill" href="/api/export/tickets"
+      ><i class="bi bi-file-earmark-excel-fill me-1"></i>Exportar Excel</a
+    >
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <button
+      class="stat-card active"
+      data-filter=""
+      onclick="setStatusFilter('', this)"
+    >
+      <span>Total</span><b id="total">0</b>
+    </button>
+  </div>
+  <div class="col-6 col-lg-3">
+    <button
+      class="stat-card"
+      data-filter="abierto"
+      onclick="setStatusFilter('abierto', this)"
+    >
+      <span>Abiertos</span><b id="abiertos">0</b>
+    </button>
+  </div>
+  <div class="col-6 col-lg-3">
+    <button
+      class="stat-card"
+      data-filter="proceso"
+      onclick="setStatusFilter('proceso', this)"
+    >
+      <span>En proceso</span><b id="proceso">0</b>
+    </button>
+  </div>
+  <div class="col-6 col-lg-3">
+    <button
+      class="stat-card"
+      data-filter="cerrado"
+      onclick="setStatusFilter('cerrado', this)"
+    >
+      <span>Cerrados</span><b id="cerrados">0</b>
+    </button>
+  </div>
+</div>
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="row g-2 mb-3 align-items-center">
+      <div class="col-md-8">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span
+          ><input
+            id="search"
+            class="form-control"
+            placeholder="Buscar por cualquier dato..."
+            oninput="loadTable()"
+          />
+          <button
+            class="btn btn-outline-danger"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#searchHelpModal"
+            title="Ayuda del buscador"
+          >
+            <i class="bi bi-info-circle"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-4 text-md-end">
+        <button class="btn btn-outline-secondary" onclick="clearFilters()">
+          <i class="bi bi-x-circle me-1"></i>Limpiar filtros
+        </button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table
+        id="data-table"
+        class="table table-hover align-middle ticket-table"
+      ></table>
+      <div id="table-pagination"></div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="ticketModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-ticket-detailed me-2"></i>Detalle del ticket
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="ticketForm" class="row g-3"></form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Cancelar</button
+        ><button class="btn btn-primary" onclick="saveTicket()">
+          <i class="bi bi-save me-1"></i>Guardar cambios
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="searchHelpModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-search me-2"></i>
+          Ayuda del buscador
+        </h5>
+
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+
+      <div class="modal-body">
+
+        <p class="text-muted">
+          Puedes buscar texto libre o utilizar filtros avanzados.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Búsqueda simple</h6>
+
+        <code>impresora</code>
+
+        <p class="small text-muted">
+          Busca coincidencias en cualquier columna.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Filtro por columna</h6>
+
+        <code>estado: abierto</code>
+
+        <p class="small text-muted">
+          Busca en una columna específica.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Múltiples valores</h6>
+
+        <code>estado: abierto, cerrado</code>
+
+        <p class="small text-muted">
+          Busca varios valores usando coma.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Múltiples filtros</h6>
+
+        <code>usuario: cristian ; estado: abierto</code>
+
+        <p class="small text-muted">
+          Combina filtros usando punto y coma.
+        </p>
+
+        <hr>
+
+        <h6 class="fw-bold">Fechas</h6>
+
+        <code>27-04-2026</code>
+
+        <p class="small text-muted">
+          Compatible con fechas visuales y formato SQL.
+        </p>
+
+        <div class="alert alert-info mt-4 mb-0">
+          El buscador ignora mayúsculas, espacios y tildes.
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

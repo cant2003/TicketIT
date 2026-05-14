@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<script>
+window.HOME_POLL = true
+</script>
+
+<div class="d-flex align-items-center gap-3 mb-5">
+
+    <div class="avatar">
+        <i class="bi bi-person-fill"></i>
+    </div>
+
+    <div>
+        <h2 class="h4 mb-0 fw-bold">{{ user }}</h2>
+        <span class="text-muted">Panel principal</span>
+    </div>
+
+</div>
+
+<div class="row g-4 justify-content-center home-grid">
+
+    <!-- Launcher -->
+    <div class="col-12 col-md-3">
+
+        <a class="module-card" href="/launcher">
+
+            <div class="module-icon">
+                <i class="bi bi-dpad-fill"></i>
+            </div>
+
+            <h3>TI-Bot</h3>
+            <p>Control de servicios del bot</p>
+
+        </a>
+
+    </div>
+
+    <!-- Tickets -->
+    <div class="col-12 col-md-3">
+
+        <a class="module-card position-relative" href="/tickets">
+
+            <span
+                id="badge-tickets"
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger hidden"
+            >
+                0
+            </span>
+
+            <div class="module-icon">
+                <i class="bi bi-ticket-detailed-fill"></i>
+            </div>
+
+            <h3>Tickets</h3>
+            <p>Gestión, filtros y reportes</p>
+
+        </a>
+
+    </div>
+
+    <!-- Logs -->
+    <div class="col-12 col-md-3">
+
+        <a class="module-card" href="/logs">
+
+            <div class="module-icon">
+                <i class="bi bi-file-earmark-text-fill"></i>
+            </div>
+
+            <h3>Logs</h3>
+            <p>Terminales y registros</p>
+
+        </a>
+
+    </div>
+
+    <!-- Gestión TI -->
+    <div class="col-12 col-md-3">
+
+        <a class="module-card" href="/gestion-ti">
+
+            <div class="module-icon">
+                <i class="bi bi-people-fill"></i>
+            </div>
+
+            <h3>Gestión TI</h3>
+            <p>Usuarios autorizados</p>
+
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}
