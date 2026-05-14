@@ -18,6 +18,25 @@ const COLUMN_NAMES = {
   observacion: "Observación TI",
   fecha_actualizacion: "Actualización",
 };
+const SEARCH_ALIASES = {
+  id: "id",
+  usuario: "usuario",
+  chat: "chat_id",
+  chat_id: "chat_id",
+  asignado: "asignado_a",
+  ti: "asignado_a",
+  area: "area",
+  área: "area",
+  descripcion: "descripcion",
+  descripción: "descripcion",
+  estado: "estado",
+  creacion: "fecha_creacion",
+  creación: "fecha_creacion",
+  observacion: "observacion",
+  observación: "observacion",
+  actualizacion: "fecha_actualizacion",
+  actualización: "fecha_actualizacion",
+};
 
 function showToast(msg, type = "success") {
   const box = document.getElementById("toasts");
@@ -130,7 +149,7 @@ async function loadTable() {
   let kind = window.TABLE_KIND || "tickets";
 
   const q = new URLSearchParams({
-    search: document.getElementById("search")?.value || "",
+    search: "",
     status: currentStatus,
   });
 
@@ -150,13 +169,122 @@ async function loadTable() {
   }
 }
 
+function normalizeText(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function searchableValue(key, value) {
+  const k = String(key).toLowerCase();
+
+  if (
+    k.includes("fecha") ||
+    k.includes("created") ||
+    k.includes("updated") ||
+    k.includes("creacion") ||
+    k.includes("actualizacion")
+  ) {
+    return `${normalizeText(value)} ${normalizeText(formatDate(value))}`;
+  }
+
+  return normalizeText(value);
+}
+
+function parseSearchQuery(query) {
+
+  const parts = query
+    .split(";")
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  const filters = [];
+  const global = [];
+
+  for (const part of parts) {
+
+    const match = part.match(
+      /^([\wáéíóúÁÉÍÓÚñÑ_ ]+)\s*:\s*(.+)$/
+    );
+
+    if (!match) {
+      global.push(normalizeText(part));
+      continue;
+    }
+
+    const rawKey = normalizeText(match[1])
+      .replace(/\s+/g, "_");
+
+    const value = normalizeText(match[2]);
+
+    const column = SEARCH_ALIASES[rawKey];
+
+    if (!column) {
+      global.push(normalizeText(part));
+      continue;
+    }
+
+    filters.push({
+      column,
+      value,
+    });
+  }
+
+  return {
+    filters,
+    global,
+  };
+}
+
+function applyAdvancedSearch(rows) {
+
+  const input = document.getElementById("search");
+  const query = input?.value || "";
+
+  if (!query.trim()) return rows;
+
+  const parsed = parseSearchQuery(query);
+
+  return rows.filter((row) => {
+
+    const filtersOk = parsed.filters.every((f) => {
+
+      return searchableValue(
+        f.column,
+        row[f.column]
+      ).includes(f.value);
+
+    });
+
+    if (!filtersOk) return false;
+
+    const globalOk = parsed.global.every((g) => {
+
+      return Object.entries(row).some(([key, value]) => {
+
+        if (key === "_rowid") return false;
+
+        return searchableValue(key, value)
+          .includes(g);
+
+      });
+
+    });
+
+    return globalOk;
+
+  });
+}
+
 function renderTable(kind) {
   const t = document.getElementById("data-table");
   if (!t) return;
 
   let cols = tableData.columns || [];
   let allRows = [...(tableData.rows || [])];
-
+  allRows = applyAdvancedSearch(allRows);
   const visibleCols =
     kind === "tickets" ? cols.filter((c) => COLUMN_NAMES[c]) : cols;
 
