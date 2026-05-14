@@ -575,6 +575,38 @@ def email_tickets():
     except Exception as e:
         return jsonify({"ok": False, "msg": str(e)}), 400
 
+@app.route("/logs")
+def logs():
+    return render_template("logs.html")
+
+
+@app.get("/api/logs")
+def api_logs():
+    log_dir = Path(os.getenv("LOG_DIR", str(BASE_DIR.parent / "logs")))
+
+    files = {
+        "worker": "worker.log",
+        "webhook": "webhook.log",
+        "ngrok": "ngrok.log",
+        "panel": "panel.log",
+    }
+
+    data = {}
+
+    for key, filename in files.items():
+        path = log_dir / filename
+
+        if path.exists():
+            lines = path.read_text(
+                encoding="utf-8",
+                errors="replace"
+            ).splitlines()
+
+            data[key] = "\n".join(lines[-300:])
+        else:
+            data[key] = "Archivo de log no encontrado."
+
+    return jsonify(data) 
 
 if __name__ == "__main__":
     app.run(
