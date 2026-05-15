@@ -136,9 +136,26 @@ async def tomar_ticket_handler(update, context):
 
         chat_id = int(ticket.chat_id) if ticket.chat_id else None
         if chat_id:
+            mensaje_usuario = [
+                f"🔔 <b>Actualización de ticket #{ticket_id}</b>",
+                "",
+                f"<b>Estado:</b> {ticket.estado}",
+                f"<b>TI asignado:</b> {ticket.asignado_a}",
+            ]
+
+            observacion = str(ticket.observacion or "").strip()
+
+            if observacion:
+                mensaje_usuario.append(f"<b>Observación TI:</b> {observacion}")
+
+            mensaje_usuario.append("")
+            mensaje_usuario.append("Tu ticket fue actualizado por el equipo TI.")
+            
+            
             await context.bot.send_message(
-                chat_id,
-                "👨‍💻 Tu ticket está en proceso",
+                chat_id=chat_id,
+                text="\n".join(mensaje_usuario),
+                parse_mode="HTML",
                 reply_markup=boton_volver(),
             )
 

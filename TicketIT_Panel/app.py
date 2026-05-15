@@ -7,6 +7,7 @@ from pathlib import Path
 from email.message import EmailMessage
 
 import atexit
+import sys
 
 from flask import (
     Flask,
@@ -21,6 +22,7 @@ from flask import (
 
 from dotenv import load_dotenv
 from openpyxl import load_workbook
+import requests
 
 
 from services.launcher_service import (
@@ -34,7 +36,12 @@ from services.launcher_service import (
 
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+ROOT_DIR = BASE_DIR.parent
+
+
+sys.path.append(str(ROOT_DIR))
+
+load_dotenv(ROOT_DIR / ".env")
 
 app = Flask(__name__)
 
@@ -365,6 +372,131 @@ def api_ti_users():
         for r in rows
     ])
 
+
+def enviar_mensaje_telegram(chat_id, texto):
+    token = os.getenv("TELEGRAM_TOKEN")
+
+    if not token:
+        print("No existe TELEGRAM_TOKEN en .env")
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    try:
+        response = requests.post(
+            url,
+            json={
+                "chat_id": str(chat_id),
+                "text": texto,
+                "parse_mode": "HTML",
+            },
+            timeout=10,
+        )
+
+        if not response.ok:
+            print("Error Telegram:", response.text)
+            return False
+
+        return True
+
+    except Exception as e:
+        print("Error enviando Telegram:", e)
+        return False
+
+def obtener_telegram_id_ti_por_nombre(nombre_ti):
+    if not nombre_ti:
+        return None
+
+    ut = user_table()
+
+    if not ut:
+        return None
+
+    cs = cols(ut)
+
+    idc = find_col(cs, ["telegram_id", "chat_id", "id_telegram", "telegram", "user_id"])
+    namec = find_col(cs, ["nombre", "name", "usuario", "username"])
+
+    if not idc or not namec:
+        return None
+
+    try:
+        with con() as c:
+            row = c.execute(
+                f"""
+                select {q(idc)} as telegram_id
+                from {q(ut)}
+                where lower(cast({q(namec)} as text)) = lower(?)
+                limit 1
+                """,
+                (nombre_ti,),
+            ).fetchone()
+
+            if row:
+                return str(row["telegram_id"])
+
+    except Exception as e:
+        print("Error buscando Telegram ID del TI:", e)
+
+    return None
+
+
+def notificar_cambio_ticket(ticket_anterior, ticket_nuevo, cambios):
+    ticket_id = ticket_nuevo.get("id", "")
+    usuario = ticket_nuevo.get("usuario", "")
+    area = ticket_nuevo.get("area", "")
+    descripcion = ticket_nuevo.get("descripcion", "")
+    estado = ticket_nuevo.get("estado", "")
+    asignado = ticket_nuevo.get("asignado_a", "") or "Sin asignar"
+    observacion = ticket_nuevo.get("observacion", "") or "Sin observación"
+
+    # Notificación al usuario que creó el ticket
+    chat_id_usuario = ticket_nuevo.get("chat_id")
+
+    if chat_id_usuario:
+        mensaje_usuario = [
+            f"🔔 <b>Actualización de ticket #{ticket_id}</b>",
+            "",
+            f"<b>Estado:</b> {estado}",
+            f"<b>TI asignado:</b> {asignado}",
+        ]
+
+        if "observacion" in cambios:
+            mensaje_usuario.append(f"<b>Observación TI:</b> {observacion}")
+
+        mensaje_usuario.append("")
+        mensaje_usuario.append("Tu ticket fue actualizado por el equipo TI.")
+
+        enviar_mensaje_telegram(chat_id_usuario, "\n".join(mensaje_usuario))
+
+    # Notificación al TI asignado
+    asignado_antes = str(ticket_anterior.get("asignado_a") or "").strip()
+    asignado_despues = str(ticket_nuevo.get("asignado_a") or "").strip()
+
+    if asignado_despues and asignado_despues != asignado_antes:
+        telegram_id_ti = obtener_telegram_id_ti_por_nombre(asignado_despues)
+
+        if telegram_id_ti:
+            mensaje_ti = [
+                f"📌 <b>Ticket asignado #{ticket_id}</b>",
+                "",
+                f"<b>Usuario:</b> {usuario}",
+                f"<b>Área:</b> {area}",
+                f"<b>Estado:</b> {estado}",
+                "",
+                "<b>Descripción:</b>",
+                descripcion or "Sin descripción",
+            ]
+
+            if observacion and observacion != "Sin observación":
+                mensaje_ti.extend([
+                    "",
+                    "<b>Observación TI:</b>",
+                    observacion,
+                ])
+
+            enviar_mensaje_telegram(telegram_id_ti, "\n".join(mensaje_ti))
+
 @app.route("/api/tickets/<int:rowid>", methods=["PUT"])
 def api_ticket_update(rowid):
     tt = ticket_table()
@@ -375,62 +507,111 @@ def api_ticket_update(rowid):
     data = request.json or {}
     cs = cols(tt)
 
-    estado_col = find_col(cs, ["estado", "status", "state"])
-    asignado_col = find_col(cs, ["asignado_a", "asignado", "ti_asignado"])
-    observacion_col = find_col(cs, ["observacion", "observacion_ti", "comentario_ti"])
-    actualizado_col = find_col(cs, ["fecha_actualizacion", "actualizacion", "updated_at"])
+    allowed_keys = [
+        "asignado_a",
+        "estado",
+        "observacion",
+    ]
+
+    allowed = {k: v for k, v in data.items() if k in cs and k in allowed_keys}
+
+    if not allowed:
+        return jsonify(
+            {"ok": False, "msg": "No hay campos válidos para actualizar"}
+        ), 400
 
     try:
         with con() as c:
-            current = c.execute(
+            ticket_actual_row = c.execute(
                 f"select rowid as _rowid, * from {q(tt)} where rowid=?",
                 (rowid,),
             ).fetchone()
 
-            if not current:
+            if not ticket_actual_row:
                 return jsonify({"ok": False, "msg": "Ticket no encontrado"}), 404
 
-            current = dict(current)
+            ticket_actual = dict(ticket_actual_row)
 
-            estado_actual = str(current.get(estado_col, "")).lower() if estado_col else ""
+            estado_actual = str(ticket_actual.get("estado") or "").strip().lower()
 
-            if "cerr" in estado_actual:
-                return jsonify({
-                    "ok": False,
-                    "msg": "El ticket está cerrado y no puede modificarse"
-                }), 400
-
-            nuevo_estado = data.get(estado_col, current.get(estado_col, "")) if estado_col else ""
-            nuevo_asignado = data.get(asignado_col, current.get(asignado_col, "")) if asignado_col else ""
-
-            if str(nuevo_estado).lower() in ["en proceso", "cerrado"]:
-                if not str(nuevo_asignado or "").strip():
-                    return jsonify({
+            if estado_actual == "cerrado":
+                return jsonify(
+                    {
                         "ok": False,
-                        "msg": "Los tickets En proceso o Cerrado deben tener un TI asignado"
-                    }), 400
+                        "msg": "No se puede editar un ticket cerrado",
+                    }
+                ), 400
 
-            allowed_keys = []
+            nuevo_estado = str(
+                allowed.get("estado", ticket_actual.get("estado") or "")
+            ).strip()
 
-            for col in [estado_col, asignado_col, observacion_col]:
-                if col and col in data:
-                    allowed_keys.append(col)
+            nuevo_asignado = str(
+                allowed.get("asignado_a", ticket_actual.get("asignado_a") or "")
+            ).strip()
 
-            updates = {k: data[k] for k in allowed_keys if k in cs}
+            nueva_observacion = str(
+                allowed.get("observacion", ticket_actual.get("observacion") or "")
+            ).strip()
 
-            if actualizado_col:
-                updates[actualizado_col] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+            if nuevo_estado in ["Proceso", "En proceso", "En Proceso", "Cerrado"] and not nuevo_asignado:
+                return jsonify(
+                    {
+                        "ok": False,
+                        "msg": "No puedes dejar sin asignar un ticket En proceso o Cerrado",
+                    }
+                ), 400
 
-            if not updates:
-                return jsonify({"ok": False, "msg": "No hay campos válidos para actualizar"}), 400
+            if nuevo_estado == "Cerrado" and not nueva_observacion:
+                return jsonify(
+                    {
+                        "ok": False,
+                        "msg": "Para cerrar el ticket debes ingresar una observación",
+                    }
+                ), 400
 
-            sets = ", ".join(f"{q(k)}=?" for k in updates)
-            params = list(updates.values()) + [rowid]
+            cambios = {}
+
+            for key, nuevo_valor in allowed.items():
+                valor_anterior = str(ticket_actual.get(key) or "")
+                valor_nuevo = str(nuevo_valor or "")
+
+                if valor_anterior != valor_nuevo:
+                    cambios[key] = {
+                        "antes": valor_anterior,
+                        "despues": valor_nuevo,
+                    }
+
+            if "fecha_actualizacion" in cs:
+                allowed["fecha_actualizacion"] = datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S.%f"
+                )
+
+            if not cambios:
+                return jsonify({"ok": True, "msg": "Sin cambios"})
+
+            sets = ", ".join(f"{q(k)}=?" for k in allowed)
+            params = list(allowed.values()) + [rowid]
 
             c.execute(f"update {q(tt)} set {sets} where rowid=?", params)
             c.commit()
 
-        # Aquí conectaremos luego con la función real del bot para notificar Telegram
+            ticket_nuevo_row = c.execute(
+                f"select rowid as _rowid, * from {q(tt)} where rowid=?",
+                (rowid,),
+            ).fetchone()
+
+            ticket_nuevo = dict(ticket_nuevo_row)
+
+        notificar_cambio_ticket(ticket_actual, ticket_nuevo, cambios)
+
+        try:
+            from bot.services.sync_jobs_service import crear_job_sync
+
+            crear_job_sync(ticket_nuevo.get("id"))
+        except Exception as e:
+            print("Error creando job sync desde panel:", e)
+
         return jsonify({"ok": True})
 
     except Exception as e:

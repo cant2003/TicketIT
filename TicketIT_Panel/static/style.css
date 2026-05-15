@@ -228,15 +228,27 @@ body {
 .log-terminal {
     background: #020617;
     color: #38bdf8;
+
     border-radius: 14px;
     padding: 18px;
+
     min-height: 300px;
     max-height: 520px;
-    overflow: auto;
+
+    overflow-y: auto;
+    overflow-x: auto;
+
     font-size: 13px;
     line-height: 1.5;
+
     white-space: pre-wrap;
+
     border: 1px solid rgba(255, 255, 255, 0.08);
+
+    user-select: text;
+    -webkit-user-select: text;
+
+    cursor: text;
 }
 
 .option-btn{
@@ -273,3 +285,4 @@ body {
 .estado-select option[value="Cerrado"] {
   color: #b91c1c;
 }
+

@@ -1,5 +1,5 @@
 @echo off
 cd /d %~dp0
 python -m pip install -r requirements.txt
-python app.py
+..\venv\Scripts\python.exe app.py
 pause
