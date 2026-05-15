@@ -340,6 +340,30 @@ def api_table(kind):
     except Exception as e:
         return jsonify({"columns": ["Error"], "rows": [{"Error": str(e)}]})
 
+@app.get("/api/ti-users")
+def api_ti_users():
+    ut = user_table()
+
+    if not ut:
+        return jsonify([])
+
+    cs = cols(ut)
+    idc = find_col(cs, ["telegram_id", "chat_id", "id_telegram", "telegram", "user_id"])
+    namec = find_col(cs, ["nombre", "name", "usuario", "username"])
+
+    if not idc:
+        return jsonify([])
+
+    with con() as c:
+        rows = c.execute(f"select * from {q(ut)} order by {q(namec or idc)}").fetchall()
+
+    return jsonify([
+        {
+            "telegram_id": str(r[idc]),
+            "nombre": r[namec] if namec else str(r[idc]),
+        }
+        for r in rows
+    ])
 
 @app.route("/api/tickets/<int:rowid>", methods=["PUT"])
 def api_ticket_update(rowid):
@@ -350,21 +374,63 @@ def api_ticket_update(rowid):
 
     data = request.json or {}
     cs = cols(tt)
-    allowed = {k: v for k, v in data.items() if k in cs}
 
-    if not allowed:
-        return jsonify(
-            {"ok": False, "msg": "No hay campos válidos para actualizar"}
-        ), 400
+    estado_col = find_col(cs, ["estado", "status", "state"])
+    asignado_col = find_col(cs, ["asignado_a", "asignado", "ti_asignado"])
+    observacion_col = find_col(cs, ["observacion", "observacion_ti", "comentario_ti"])
+    actualizado_col = find_col(cs, ["fecha_actualizacion", "actualizacion", "updated_at"])
 
     try:
-        sets = ", ".join(f"{q(k)}=?" for k in allowed)
-        params = list(allowed.values()) + [rowid]
-
         with con() as c:
+            current = c.execute(
+                f"select rowid as _rowid, * from {q(tt)} where rowid=?",
+                (rowid,),
+            ).fetchone()
+
+            if not current:
+                return jsonify({"ok": False, "msg": "Ticket no encontrado"}), 404
+
+            current = dict(current)
+
+            estado_actual = str(current.get(estado_col, "")).lower() if estado_col else ""
+
+            if "cerr" in estado_actual:
+                return jsonify({
+                    "ok": False,
+                    "msg": "El ticket está cerrado y no puede modificarse"
+                }), 400
+
+            nuevo_estado = data.get(estado_col, current.get(estado_col, "")) if estado_col else ""
+            nuevo_asignado = data.get(asignado_col, current.get(asignado_col, "")) if asignado_col else ""
+
+            if str(nuevo_estado).lower() in ["en proceso", "cerrado"]:
+                if not str(nuevo_asignado or "").strip():
+                    return jsonify({
+                        "ok": False,
+                        "msg": "Los tickets En proceso o Cerrado deben tener un TI asignado"
+                    }), 400
+
+            allowed_keys = []
+
+            for col in [estado_col, asignado_col, observacion_col]:
+                if col and col in data:
+                    allowed_keys.append(col)
+
+            updates = {k: data[k] for k in allowed_keys if k in cs}
+
+            if actualizado_col:
+                updates[actualizado_col] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+
+            if not updates:
+                return jsonify({"ok": False, "msg": "No hay campos válidos para actualizar"}), 400
+
+            sets = ", ".join(f"{q(k)}=?" for k in updates)
+            params = list(updates.values()) + [rowid]
+
             c.execute(f"update {q(tt)} set {sets} where rowid=?", params)
             c.commit()
 
+        # Aquí conectaremos luego con la función real del bot para notificar Telegram
         return jsonify({"ok": True})
 
     except Exception as e:
@@ -617,6 +683,7 @@ def api_logs():
             data[key] = "Archivo de log no encontrado."
 
     return jsonify(data) 
+
 
 if __name__ == "__main__":
     app.run(

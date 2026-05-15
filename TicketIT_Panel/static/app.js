@@ -260,9 +260,12 @@ function applyAdvancedSearch(rows) {
 
   return rows.filter((row) => {
     const filtersOk = parsed.filters.every((f) => {
-      return f.values.some((v) =>
-        searchableValue(f.column, row[f.column]).includes(v),
-      );
+      return f.values.some(v =>
+  searchableValue(
+    f.column,
+    row[f.column]
+  ).includes(v)
+);
     });
 
     if (!filtersOk) return false;
@@ -503,45 +506,144 @@ function clearFilters() {
   loadTable();
 }
 
-function openTicket(row) {
+async function openTicket(row) {
   selectedTicket = row;
 
   const form = document.getElementById("ticketForm");
   form.innerHTML = "";
 
-  tableData.columns.forEach((c) => {
-    let value = row[c] ?? "";
-    let lower = c.toLowerCase();
+  const estadoActual = String(row.estado || "").trim();
+  const isClosed = estadoActual.toLowerCase() === "cerrado";
 
-    let editable = !(
-      lower === "id" ||
-      lower.includes("fecha") ||
-      lower.includes("crea") ||
-      lower.includes("actualiz")
-    );
+  let tiUsers = [];
 
-    let field;
+  try {
+    const r = await fetch("/api/ti-users");
+    tiUsers = await r.json();
+  } catch (e) {
+    tiUsers = [];
+  }
 
-    if (lower.includes("descripcion") || lower.includes("observ")) {
-      field = `<textarea class="form-control" rows="3" name="${c}" ${editable ? "" : "readonly"}>${escapeHtml(value)}</textarea>`;
-    } else {
-      field = `<input class="form-control" name="${c}" value="${escapeHtml(value)}" ${editable ? "" : "readonly"}>`;
+  const plainFields = [
+    ["id", "ID"],
+    ["usuario", "Usuario"],
+    ["chat_id", "Chat ID"],
+    ["area", "Área"],
+    ["descripcion", "Descripción"],
+    ["fecha_creacion", "Creación"],
+    ["fecha_actualizacion", "Actualización"],
+  ];
+
+  plainFields.forEach(([key, label]) => {
+    let value = row[key] ?? "-";
+
+    if (key.includes("fecha")) {
+      value = formatDate(value);
     }
 
     form.insertAdjacentHTML(
       "beforeend",
       `<div class="col-md-6">
-        <label class="form-label fw-semibold">${COLUMN_NAMES[c] || c}</label>
-        ${field}
+        <label class="form-label fw-semibold text-primary">${label}</label>
+        <div class="detail-plain">${escapeHtml(value)}</div>
       </div>`,
     );
   });
+
+  form.insertAdjacentHTML(
+    "beforeend",
+    `<div class="col-md-6">
+      <label class="form-label fw-semibold text-primary">TI Asignado</label>
+      <select class="form-select" name="asignado_a" ${isClosed ? "disabled" : ""}>
+        <option value="">No asignar</option>
+        ${tiUsers
+          .map((u) => {
+            const nombre = escapeHtml(u.nombre || "");
+            const selected =
+              String(row.asignado_a || "") === String(u.nombre || "")
+                ? "selected"
+                : "";
+
+            return `<option value="${nombre}" ${selected}>${nombre}</option>`;
+          })
+          .join("")}
+      </select>
+    </div>`,
+  );
+
+  form.insertAdjacentHTML(
+    "beforeend",
+    `<div class="col-md-6">
+      <label class="form-label fw-semibold text-primary">Estado</label>
+      <select class="form-select estado-select" name="estado" ${isClosed ? "disabled" : ""}>
+        <option value="Abierto" ${estadoActual === "Abierto" ? "selected" : ""}>🟢 Abierto</option>
+        <option value="En proceso" ${estadoActual === "En Proceso" ? "selected" : ""}>🟡 En proceso</option>
+        <option value="Cerrado" ${estadoActual === "Cerrado" ? "selected" : ""}>🔴 Cerrado</option>
+      </select>
+    </div>`,
+  );
+
+  form.insertAdjacentHTML(
+    "beforeend",
+    `<div class="col-12">
+      <label class="form-label fw-semibold text-primary">Observación TI</label>
+      <textarea
+        class="form-control"
+        rows="4"
+        name="observacion"
+        ${isClosed ? "readonly" : ""}
+      >${escapeHtml(row.observacion || "")}</textarea>
+    </div>`,
+  );
+
+  if (isClosed) {
+    form.insertAdjacentHTML(
+      "afterbegin",
+      `<div class="col-12">
+        <div class="alert alert-secondary">
+          Este ticket está cerrado. No se pueden realizar cambios.
+        </div>
+      </div>`,
+    );
+  }
+
+  const saveBtn = document.getElementById("saveTicketBtn");
+  if (saveBtn) {
+    saveBtn.disabled = isClosed;
+  }
 
   new bootstrap.Modal("#ticketModal").show();
 }
 
 async function saveTicket() {
   if (!selectedTicket) return;
+
+  if (String(selectedTicket.estado || "").toLowerCase() === "cerrado") {
+    showToast("No se puede editar un ticket cerrado", "warning");
+    return;
+  }
+
+  const form = document.getElementById("ticketForm");
+
+  const estado = form.querySelector('[name="estado"]')?.value || "";
+  const asignado = form.querySelector('[name="asignado_a"]')?.value || "";
+  const observacion = form.querySelector('[name="observacion"]')?.value || "";
+
+  if (["En proceso", "Cerrado"].includes(estado) && !asignado.trim()) {
+    showToast("Para dejar el ticket En proceso o Cerrado debes asignar un TI", "warning");
+    return;
+  }
+
+  if (estado === "Cerrado" && !observacion.trim()) {
+    showToast("Para cerrar el ticket debes ingresar una observación TI", "warning");
+    return;
+  }
+
+  const body = {
+    estado,
+    asignado_a: asignado,
+    observacion,
+  };
 
   if (
     !(await confirmBox(
@@ -552,13 +654,6 @@ async function saveTicket() {
   )
     return;
 
-  const form = document.getElementById("ticketForm");
-  let body = {};
-
-  [...form.elements].forEach((e) => {
-    if (e.name && !e.readOnly) body[e.name] = e.value;
-  });
-
   const r = await fetch(`/api/tickets/${selectedTicket._rowid}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -568,7 +663,7 @@ async function saveTicket() {
   const j = await r.json().catch(() => ({}));
 
   showToast(
-    r.ok ? "Ticket actualizado" : j.msg || "No se pudo actualizar",
+    r.ok ? "Ticket actualizado correctamente" : j.msg || "No se pudo actualizar",
     r.ok ? "success" : "danger",
   );
 
@@ -576,52 +671,6 @@ async function saveTicket() {
     bootstrap.Modal.getInstance(document.getElementById("ticketModal")).hide();
     loadTable();
   }
-}
-
-function getFilteredRowsForExport() {
-  let rows = [...(tableData.rows || [])];
-
-  rows = applyAdvancedSearch(rows);
-
-  if (sortState.col) {
-    rows.sort(
-      (a, b) =>
-        String(a[sortState.col] ?? "").localeCompare(
-          String(b[sortState.col] ?? ""),
-          undefined,
-          { numeric: true, sensitivity: "base" },
-        ) * sortState.dir,
-    );
-  }
-
-  return rows;
-}
-
-async function exportTicketsExcel() {
-  const rows = getFilteredRowsForExport();
-
-  const r = await fetch("/api/export/tickets", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ rows }),
-  });
-
-  if (!r.ok) {
-    showToast("No se pudo generar el Excel", "danger");
-    return;
-  }
-
-  const blob = await r.blob();
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "reporte_tickets.xlsx";
-  a.click();
-
-  URL.revokeObjectURL(url);
 }
 
 async function sendTicketsEmail() {
@@ -634,15 +683,7 @@ async function sendTicketsEmail() {
   )
     return;
 
-  const rows = getFilteredRowsForExport();
-
-  const r = await fetch("/api/email/tickets", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ rows }),
-  });
+  const r = await fetch("/api/email/tickets", { method: "POST" });
   const j = await r.json().catch(() => ({}));
 
   showToast(

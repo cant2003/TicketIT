@@ -251,3 +251,25 @@ body {
     color: #020617;
     border: 0;
 }
+
+.detail-plain {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  min-height: 42px;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.estado-select option[value="Abierto"] {
+  color: #15803d;
+}
+
+.estado-select option[value="En proceso"] {
+  color: #a16207;
+}
+
+.estado-select option[value="Cerrado"] {
+  color: #b91c1c;
+}
