@@ -744,7 +744,7 @@ def build_ticket_excel(rows=None):
         "fecha_actualizacion",
     ]
 
-    ws["A2"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    ws["A2"] = f"Fecha Exportacion: {datetime.now().strftime("%d-%m-%Y %H:%M:%S")}"
 
     start_row = 4
 
